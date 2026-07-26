@@ -4,6 +4,9 @@
 @import "./designs/industrial-blueprint/theme.css";
 @import "./designs/neomorphic-canvas/theme.css";
 
+/* Industrial Blueprint carries the product UI; see src/ui/theme.css. */
+@import "./ui/theme.css";
+
 @theme {
   --font-archivo:
     "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
