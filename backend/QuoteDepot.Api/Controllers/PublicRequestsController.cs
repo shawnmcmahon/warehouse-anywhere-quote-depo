@@ -44,16 +44,27 @@ public class PublicRequestsController : ControllerBase
         [FromBody] PublicQuoteBody body,
         CancellationToken cancellationToken)
     {
-        if (!Enum.TryParse<QuoteUnit>(body.Unit, ignoreCase: true, out var unit))
+        if (!Enum.TryParse<QuoteUnit>(body.Unit, ignoreCase: true, out var unit)
+            || !Enum.IsDefined(unit))
         {
             return BadRequest(new { error = "Unit must be OneTime, Monthly, or Weekly." });
         }
 
-        var initial = string.IsNullOrWhiteSpace(body.Status)
-            ? QuoteStatus.Submitted
-            : Enum.TryParse<QuoteStatus>(body.Status, ignoreCase: true, out var parsed)
-                ? parsed
-                : QuoteStatus.Submitted;
+        QuoteStatus initial;
+        if (string.IsNullOrWhiteSpace(body.Status))
+        {
+            initial = QuoteStatus.Submitted;
+        }
+        else if (Enum.TryParse<QuoteStatus>(body.Status, ignoreCase: true, out var parsed)
+                 && Enum.IsDefined(parsed)
+                 && parsed is QuoteStatus.Draft or QuoteStatus.Submitted)
+        {
+            initial = parsed;
+        }
+        else
+        {
+            return BadRequest(new { error = "Status must be Draft or Submitted." });
+        }
 
         Guid? userId = null;
         if (User.Identity?.IsAuthenticated == true)

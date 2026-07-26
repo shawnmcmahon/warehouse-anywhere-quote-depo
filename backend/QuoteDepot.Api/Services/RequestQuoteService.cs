@@ -233,8 +233,8 @@ public class RequestQuoteService : IRequestQuoteService
     {
         var membership = await _users.RequireActiveMembershipAsync(orgId, actor.Id, ct);
         OrgPermissions.Ensure(
-            OrgPermissions.CanAcceptQuotes(membership.Role) || membership.Role == OrgRole.Member,
-            "You cannot update quote status.");
+            OrgPermissions.CanManageQuotes(membership.Role),
+            "Only Owner or Admin can update quote status.");
 
         if (to == QuoteStatus.Accepted)
         {

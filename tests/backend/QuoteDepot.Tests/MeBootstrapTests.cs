@@ -104,4 +104,39 @@ public class MeBootstrapTests : IClassFixture<QuoteDepotWebApplicationFactory>
         Assert.Equal("Acme Warehousing", body.PendingInvites[0].OrganizationName);
         Assert.Equal("Member", body.PendingInvites[0].Role);
     }
+
+    [Fact]
+    public async Task Bootstrap_matches_pending_invites_case_insensitively()
+    {
+        var sub = $"sub-{Guid.NewGuid():N}";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var owner = new User { CognitoSub = $"owner-{Guid.NewGuid():N}", Email = "owner-case@example.com" };
+            var org = new Organization { Name = "Case Org", OwnerUserId = owner.Id, Owner = owner };
+            db.Users.Add(owner);
+            db.Organizations.Add(org);
+            db.Invites.Add(new Invite
+            {
+                OrganizationId = org.Id,
+                Email = "user@example.com",
+                Role = OrgRole.Member,
+                Status = InviteStatus.Pending,
+                InvitedByUserId = owner.Id,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", DevJwt.Create(sub, "User@Example.com", "Cased"));
+
+        var body = await (await client.PostAsync("/api/me/bootstrap", content: null))
+            .Content.ReadFromJsonAsync<BootstrapResponse>();
+        Assert.NotNull(body);
+        Assert.Equal("user@example.com", body.Email);
+        Assert.Single(body.PendingInvites);
+        Assert.Equal("Case Org", body.PendingInvites[0].OrganizationName);
+    }
 }

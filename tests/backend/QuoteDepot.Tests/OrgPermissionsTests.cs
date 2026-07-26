@@ -14,6 +14,7 @@ public class OrgPermissionsTests
         Assert.Equal(expected, OrgPermissions.CanManageMembership(role));
         Assert.Equal(expected, OrgPermissions.CanInvite(role));
         Assert.Equal(expected, OrgPermissions.CanApproveJoinRequests(role));
+        Assert.Equal(expected, OrgPermissions.CanManageQuotes(role));
         Assert.Equal(expected, OrgPermissions.CanAcceptQuotes(role));
     }
 
