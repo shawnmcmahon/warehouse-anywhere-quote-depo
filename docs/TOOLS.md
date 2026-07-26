@@ -25,6 +25,12 @@ cd frontend && npm run dev
 - API: `http://localhost:5101` (Swagger in Development)
 - SPA: `http://localhost:5173` (proxies `/api` → API)
 - Health: `GET /api/health`
+- Bootstrap (auth): `POST /api/me/bootstrap` with `Authorization: Bearer <JWT>`
+
+### Auth
+
+- Production: set `Cognito__Region`, `Cognito__UserPoolId`, `Cognito__ClientId` (see `.env.example`).
+- Local Development: `Cognito:UseDevAuth=true` validates HS256 JWTs issued for issuer `quote-depot-dev` (tests use the same).
 
 ## Docker (local)
 
