@@ -4,7 +4,7 @@ Organizations, RFQ requests, and quotes — ASP.NET Core 8 + React/Vite/Tailwind
 
 ## Status
 
-Backend-first build. Frontend is a minimal shell until the API is complete; design explorations (`/1`, `/2`, `/3`) are intentionally deferred.
+Backend-first build. Frontend is a minimal shell until the API is complete; design explorations (/1, /2, /3) are intentionally deferred.
 
 ## Repo layout
 

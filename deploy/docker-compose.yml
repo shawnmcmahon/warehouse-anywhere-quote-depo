@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: backend/QuoteDepot.Api/Dockerfile
+    volumes:
+      - quotedepot-data:/data
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Data__SqlitePath: /data/quotedepot.db
+      Data__UploadsPath: /data/uploads
+    expose:
+      - "8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  quotedepot-data:
