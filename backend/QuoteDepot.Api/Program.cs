@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using QuoteDepot.Api.Auth;
 using QuoteDepot.Infrastructure;
 using QuoteDepot.Infrastructure.Data;
 
@@ -8,6 +9,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddQuoteDepotAuth(builder.Configuration, builder.Environment);
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -35,6 +37,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
