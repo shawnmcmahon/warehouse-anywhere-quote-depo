@@ -19,8 +19,10 @@ public static class OrgPermissions
     public static bool CanManageRequests(OrgRole role) =>
         role is OrgRole.Owner or OrgRole.Admin or OrgRole.Member;
 
-    public static bool CanAcceptQuotes(OrgRole role) =>
+    public static bool CanManageQuotes(OrgRole role) =>
         role is OrgRole.Owner or OrgRole.Admin;
+
+    public static bool CanAcceptQuotes(OrgRole role) => CanManageQuotes(role);
 
     public static void Ensure(bool allowed, string message)
     {

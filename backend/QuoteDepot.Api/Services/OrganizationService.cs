@@ -146,17 +146,31 @@ public class OrganizationService : IOrganizationService
             .AnyAsync(
                 m => m.OrganizationId == orgId
                      && m.Status == MembershipStatus.Active
-                     && m.User!.Email == email,
+                     && m.User!.Email.ToLower() == email,
                 ct);
         if (existingMember)
         {
             throw new DomainException("That user is already an active member.");
         }
 
-        var pending = await _db.Invites.AnyAsync(
-            i => i.OrganizationId == orgId && i.Email == email && i.Status == InviteStatus.Pending,
-            ct);
-        if (pending)
+        var now = DateTimeOffset.UtcNow;
+        var pendingInvites = await _db.Invites
+            .Where(i => i.OrganizationId == orgId && i.Email == email && i.Status == InviteStatus.Pending)
+            .ToListAsync(ct);
+        var stillPending = false;
+        foreach (var existingInvite in pendingInvites)
+        {
+            if (existingInvite.ExpiresAt is { } expires && expires < now)
+            {
+                existingInvite.Status = InviteStatus.Expired;
+            }
+            else
+            {
+                stillPending = true;
+            }
+        }
+
+        if (stillPending)
         {
             throw new DomainException("An invite is already pending for that email.");
         }
@@ -168,7 +182,7 @@ public class OrganizationService : IOrganizationService
             Role = role,
             Status = InviteStatus.Pending,
             InvitedByUserId = actor.Id,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(14),
+            ExpiresAt = now.AddDays(14),
         };
         _db.Invites.Add(invite);
         await _db.SaveChangesAsync(ct);
@@ -391,12 +405,14 @@ public class OrganizationService : IOrganizationService
                 Status = MembershipStatus.Active,
             });
         }
-        else
+        else if (membership.Status == MembershipStatus.Revoked)
         {
+            // Re-admit revoked users as Member; do not invent a higher role.
             membership.Status = MembershipStatus.Active;
             membership.Role = OrgRole.Member;
             membership.UpdatedAt = DateTimeOffset.UtcNow;
         }
+        // Already active (e.g. accepted an Admin invite first): preserve current role.
 
         await _db.SaveChangesAsync(ct);
     }

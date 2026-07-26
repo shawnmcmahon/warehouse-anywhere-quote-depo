@@ -21,11 +21,21 @@ builder.Services.AddScoped<IRequestQuoteService, RequestQuoteService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("public-quotes", limiter =>
+    // Partition by client IP + request slug so one busy RFQ cannot starve others.
+    options.AddPolicy("public-quotes", httpContext =>
     {
-        limiter.PermitLimit = 30;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var slug = httpContext.Request.RouteValues.TryGetValue("slug", out var routeSlug)
+            ? routeSlug?.ToString() ?? string.Empty
+            : string.Empty;
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"{ip}:{slug}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            });
     });
 });
 builder.Services.AddCors(options =>

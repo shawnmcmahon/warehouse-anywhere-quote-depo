@@ -23,9 +23,11 @@ public class UserBootstrapService : IUserBootstrapService
             ?? principal.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? throw new InvalidOperationException("Authenticated token is missing a subject claim.");
 
-        var email = principal.FindFirstValue("email")
+        var email = (principal.FindFirstValue("email")
             ?? principal.FindFirstValue(ClaimTypes.Email)
-            ?? throw new InvalidOperationException("Authenticated token is missing an email claim.");
+            ?? throw new InvalidOperationException("Authenticated token is missing an email claim."))
+            .Trim()
+            .ToLowerInvariant();
 
         var name = principal.FindFirstValue("name")
             ?? principal.FindFirstValue("cognito:username")
@@ -47,7 +49,7 @@ public class UserBootstrapService : IUserBootstrapService
         else
         {
             var changed = false;
-            if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(user.Email, email, StringComparison.Ordinal))
             {
                 user.Email = email;
                 changed = true;
@@ -77,9 +79,10 @@ public class UserBootstrapService : IUserBootstrapService
                 m.Status.ToString()))
             .ToListAsync(cancellationToken);
 
+        // Invites are stored lowercased; match against normalized user email.
         var pendingInvites = await _db.Invites
             .AsNoTracking()
-            .Where(i => i.Email == user.Email && i.Status == InviteStatus.Pending)
+            .Where(i => i.Email == email && i.Status == InviteStatus.Pending)
             .Select(i => new PendingInviteSummary(
                 i.Id,
                 i.OrganizationId,

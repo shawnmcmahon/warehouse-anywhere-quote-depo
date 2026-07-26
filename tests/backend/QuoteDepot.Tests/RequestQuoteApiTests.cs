@@ -111,7 +111,7 @@ public class RequestQuoteApiTests : IClassFixture<QuoteDepotWebApplicationFactor
     }
 
     [Fact]
-    public async Task Member_cannot_accept_quote()
+    public async Task Member_cannot_transition_or_accept_quote()
     {
         var owner = Authed("rq-owner2", "rq-owner2@example.com");
         var org = await (await owner.PostAsJsonAsync("/api/orgs", new CreateOrgRequest("Member Org", null)))
@@ -150,6 +150,11 @@ public class RequestQuoteApiTests : IClassFixture<QuoteDepotWebApplicationFactor
             .Content.ReadFromJsonAsync<QuoteResponse>();
         Assert.NotNull(quote);
 
+        var memberTransition = await member.PostAsJsonAsync(
+            $"/api/orgs/{org.Id}/requests/{request.Id}/quotes/{quote.Id}/status",
+            new TransitionQuoteBody("UnderReview"));
+        Assert.Equal(HttpStatusCode.BadRequest, memberTransition.StatusCode);
+
         await owner.PostAsJsonAsync(
             $"/api/orgs/{org.Id}/requests/{request.Id}/quotes/{quote.Id}/status",
             new TransitionQuoteBody("UnderReview"));
@@ -158,6 +163,36 @@ public class RequestQuoteApiTests : IClassFixture<QuoteDepotWebApplicationFactor
             $"/api/orgs/{org.Id}/requests/{request.Id}/quotes/{quote.Id}/accept",
             content: null);
         Assert.Equal(HttpStatusCode.BadRequest, accept.StatusCode);
+    }
+
+    [Fact]
+    public async Task Public_quote_rejects_undefined_unit_values()
+    {
+        var owner = Authed("rq-owner3", "rq-owner3@example.com");
+        var org = await (await owner.PostAsJsonAsync("/api/orgs", new CreateOrgRequest("Unit Org", null)))
+            .Content.ReadFromJsonAsync<OrgResponse>();
+        Assert.NotNull(org);
+        var request = await (await owner.PostAsJsonAsync(
+                $"/api/orgs/{org.Id}/requests",
+                new CreateRequestBody("Unit RFQ", null)))
+            .Content.ReadFromJsonAsync<RequestResponse>();
+        Assert.NotNull(request);
+
+        var guest = _factory.CreateClient();
+        var response = await guest.PostAsJsonAsync(
+            $"/api/public/requests/{request.PublicSlug}/quotes",
+            new PublicQuoteBody(
+                "Vendor",
+                10m,
+                "999",
+                null,
+                null,
+                "Pat",
+                null,
+                "pat@test.com",
+                null,
+                null));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     private HttpClient Authed(string sub, string email)
