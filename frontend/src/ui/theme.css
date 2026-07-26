@@ -1,0 +1,90 @@
+/**
+ * Industrial Blueprint, promoted from exploration /2 to the product UI.
+ *
+ * The exploration only ever had to render a landing page, so it carried six
+ * colours and three type roles. Running a whole application on it needs two
+ * things it did not have: a light surface hierarchy (page → panel → field, so
+ * forms and cards separate without inventing borders that fight the 1px rule
+ * discipline), and an ink for approval, because a drawing office stamps work
+ * approved and the quote lifecycle ends there.
+ *
+ * Everything else is inherited. Hard corners, 1px rules, mono for every figure,
+ * hazard yellow reserved for the one thing on screen that needs a decision.
+ */
+
+@theme {
+  /* Panel stock sits one step above vellum; fields one step above that. */
+  --color-bp-sheet: #f2f0e9;
+  --color-bp-field: #faf9f4;
+  /* Approval stamp. Distinct from the cyan setting-out line at a glance. */
+  --color-bp-approve: #2f6b45;
+}
+
+@layer components {
+  /**
+   * Fields read as boxes to write in, not as UI chrome: square, ruled in ink,
+   * mono so typed figures line up with the tabulated ones.
+   */
+  .bp-input {
+    font-family: var(--font-plex);
+    background-color: var(--color-bp-field);
+    border: 1px solid var(--color-bp-ink);
+    border-radius: 0;
+    color: var(--color-bp-ink);
+    width: 100%;
+  }
+
+  .bp-input::placeholder {
+    color: color-mix(in srgb, var(--color-bp-graphite) 70%, transparent);
+  }
+
+  .bp-input:focus-visible {
+    outline: 2px solid var(--color-bp-line);
+    outline-offset: 1px;
+  }
+
+  .bp-input:disabled {
+    background-color: var(--color-bp-stock);
+    color: var(--color-bp-graphite);
+    cursor: not-allowed;
+  }
+
+  .bp-input[aria-invalid="true"] {
+    border-color: var(--color-bp-flag);
+    box-shadow: inset 0 0 0 1px var(--color-bp-flag);
+  }
+
+  /* Figures typed into a field should tabulate like figures printed on one. */
+  .bp-input-figure {
+    font-family: var(--font-plex-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /**
+   * One focus treatment for everything that is not an input. Outline rather
+   * than a ring so it never needs to know what surface it sits on.
+   */
+  .bp-focus:focus-visible {
+    outline: 2px solid var(--color-bp-line);
+    outline-offset: 2px;
+  }
+
+  .bp-focus-inverse:focus-visible {
+    outline: 2px solid var(--color-bp-hazard);
+    outline-offset: 2px;
+  }
+
+  /**
+   * Accepted quotes get stamped. The rotation is the whole gesture, so it is
+   * the only place in the app anything sits off the orthogonal grid.
+   */
+  .bp-stamp {
+    font-family: var(--font-saira);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-bp-approve);
+    border: 2px solid var(--color-bp-approve);
+    transform: rotate(-4deg);
+  }
+}

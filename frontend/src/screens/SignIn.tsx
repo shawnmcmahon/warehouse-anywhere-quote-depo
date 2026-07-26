@@ -1,0 +1,119 @@
+import { Link } from "react-router-dom";
+import { Button } from "../ui/Button";
+import { TextField } from "../ui/Field";
+
+/**
+ * Sign in.
+ *
+ * Presentation only — the identity provider, the redirect and the token
+ * exchange are wired separately. The form and the Google control are shaped to
+ * the Cognito hosted flow so that wiring is a change of handler, not layout.
+ */
+
+function GoogleMark() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 18 18"
+      className="h-3.5 w-3.5"
+      focusable="false"
+    >
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.94v2.33A9 9 0 0 0 9 18Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.94a9 9 0 0 0 0 8.1l3.03-2.33Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .94 4.95l3.03 2.33C4.68 5.16 6.66 3.58 9 3.58Z"
+      />
+    </svg>
+  );
+}
+
+export default function SignIn() {
+  return (
+    <div className="bp-grid flex min-h-screen flex-col bg-bp-vellum text-bp-ink">
+      <header className="border-b border-bp-ink bg-bp-stock">
+        <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-6 px-5 py-2.5 lg:px-8">
+          <Link to="/" className="bp-focus flex items-center gap-3 no-underline">
+            <span className="flex h-6 w-6 items-center justify-center border border-bp-ink bg-bp-ink text-[10px] font-bold text-bp-hazard">
+              QD
+            </span>
+            <span className="bp-display text-base text-bp-ink">Quote Depot</span>
+          </Link>
+          <Link
+            to="/"
+            className="bp-anno bp-focus text-[9px] text-bp-graphite hover:text-bp-line"
+          >
+            Back to site
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex flex-1 items-center justify-center px-5 py-12 lg:py-20">
+        <div className="w-full max-w-md border border-bp-ink bg-bp-sheet">
+          <div className="border-b border-bp-ink bg-bp-stock px-6 py-3">
+            <p className="bp-anno m-0 text-[9px] text-bp-graphite">
+              Access control
+            </p>
+          </div>
+
+          <div className="p-6 sm:p-8">
+            <h1 className="bp-display m-0 text-3xl">Sign in</h1>
+            <p className="bp-body m-0 mt-3 text-sm text-bp-graphite">
+              Buyers sign in to raise requests and award work. Vendors bidding
+              on a link do not need an account.
+            </p>
+
+            <form
+              className="mt-7 flex flex-col gap-5"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <TextField
+                label="Work email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@company.com"
+              />
+              <Button type="submit" variant="primary" size="lg" fullWidth>
+                Continue
+              </Button>
+            </form>
+
+            <div className="my-6 flex items-center gap-3" aria-hidden="true">
+              <span className="h-px flex-1 bg-bp-ink/25" />
+              <span className="bp-anno text-[8px] text-bp-graphite">or</span>
+              <span className="h-px flex-1 bg-bp-ink/25" />
+            </div>
+
+            <Button variant="secondary" size="lg" fullWidth>
+              <GoogleMark />
+              Sign in with Google
+            </Button>
+
+            <p className="bp-body m-0 mt-7 text-xs text-bp-graphite">
+              Bidding on a request?{" "}
+              <Link
+                to="/"
+                className="bp-focus text-bp-line underline decoration-dotted underline-offset-4"
+              >
+                Use the link you were sent
+              </Link>{" "}
+              — no account needed.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
