@@ -41,11 +41,13 @@ public class RequestQuoteService : IRequestQuoteService
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserAccessor _users;
+    private readonly IAuditService _audit;
 
-    public RequestQuoteService(AppDbContext db, ICurrentUserAccessor users)
+    public RequestQuoteService(AppDbContext db, ICurrentUserAccessor users, IAuditService audit)
     {
         _db = db;
         _users = users;
+        _audit = audit;
     }
 
     public async Task<Request> CreateRequestAsync(
@@ -73,6 +75,13 @@ public class RequestQuoteService : IRequestQuoteService
             Status = RequestStatus.Open,
         };
         _db.Requests.Add(request);
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.RequestCreated,
+            nameof(Request),
+            request.Id,
+            new { request.Title, request.PublicSlug });
         await _db.SaveChangesAsync(ct);
         return request;
     }
@@ -118,6 +127,13 @@ public class RequestQuoteService : IRequestQuoteService
         request.Title = title.Trim();
         request.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         request.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.RequestUpdated,
+            nameof(Request),
+            request.Id,
+            new { request.Title });
         await _db.SaveChangesAsync(ct);
         return request;
     }
@@ -133,9 +149,17 @@ public class RequestQuoteService : IRequestQuoteService
         OrgPermissions.Ensure(OrgPermissions.CanManageRequests(membership.Role), "You cannot change request status.");
 
         var request = await LoadOrgRequestAsync(orgId, requestId, ct, tracking: true);
+        var from = request.Status;
         RequestLifecycle.EnsureCanTransition(request.Status, to);
         request.Status = to;
         request.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.RequestStatusChanged,
+            nameof(Request),
+            request.Id,
+            new { From = from.ToString(), To = to.ToString() });
         await _db.SaveChangesAsync(ct);
         return request;
     }
@@ -152,6 +176,13 @@ public class RequestQuoteService : IRequestQuoteService
         var request = await LoadOrgRequestAsync(orgId, requestId, ct, tracking: true);
         request.PublicSlug = await GenerateUniqueSlugAsync(ct);
         request.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.RequestSlugRegenerated,
+            nameof(Request),
+            request.Id,
+            new { request.PublicSlug });
         await _db.SaveChangesAsync(ct);
         return request;
     }
@@ -204,6 +235,13 @@ public class RequestQuoteService : IRequestQuoteService
             Status = status,
         };
         _db.Quotes.Add(quote);
+        _audit.Record(
+            request.OrganizationId,
+            submittedByUserId,
+            AuditActions.QuoteSubmitted,
+            nameof(Quote),
+            quote.Id,
+            new { quote.BusinessName, Status = quote.Status.ToString(), request.PublicSlug });
         await _db.SaveChangesAsync(ct);
         return quote;
     }
@@ -248,9 +286,17 @@ public class RequestQuoteService : IRequestQuoteService
             throw new DomainException("Quote not found.");
         }
 
+        var from = quote.Status;
         QuoteLifecycle.EnsureCanTransition(quote.Status, to);
         quote.Status = to;
         quote.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.QuoteStatusChanged,
+            nameof(Quote),
+            quote.Id,
+            new { From = from.ToString(), To = to.ToString(), requestId });
         await _db.SaveChangesAsync(ct);
         return quote;
     }
@@ -282,6 +328,13 @@ public class RequestQuoteService : IRequestQuoteService
         }
 
         QuoteAcceptanceService.ApplyExclusiveAccept(request, quote);
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.QuoteAccepted,
+            nameof(Quote),
+            quote.Id,
+            new { requestId, quote.BusinessName });
 
         try
         {
