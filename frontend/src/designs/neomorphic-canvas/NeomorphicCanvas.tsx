@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ControlDeck } from "./ControlDeck";
 import { coverage, sampleRequest, testimonial, workflow } from "../content";
 

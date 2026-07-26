@@ -15,6 +15,8 @@ public interface IOrganizationService
     Task<Organization> UpdateAsync(Guid orgId, User actor, string name, string? description, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationMembership>> ListMembersAsync(Guid orgId, User actor, CancellationToken ct = default);
     Task<Invite> InviteAsync(Guid orgId, User actor, string email, OrgRole role, CancellationToken ct = default);
+    Task<IReadOnlyList<Invite>> ListInvitesAsync(Guid orgId, User actor, CancellationToken ct = default);
+    Task RevokeInviteAsync(Guid orgId, User actor, Guid inviteId, CancellationToken ct = default);
     Task<OrganizationMembership> AcceptInviteAsync(User user, string token, CancellationToken ct = default);
     Task ChangeRoleAsync(Guid orgId, User actor, Guid membershipId, OrgRole newRole, CancellationToken ct = default);
     Task RevokeMembershipAsync(Guid orgId, User actor, Guid membershipId, CancellationToken ct = default);
@@ -210,6 +212,54 @@ public class OrganizationService : IOrganizationService
             new { invite.Email, Role = invite.Role.ToString() });
         await _db.SaveChangesAsync(ct);
         return invite;
+    }
+
+    public async Task<IReadOnlyList<Invite>> ListInvitesAsync(
+        Guid orgId,
+        User actor,
+        CancellationToken ct = default)
+    {
+        var membership = await _users.RequireActiveMembershipAsync(orgId, actor.Id, ct);
+        OrgPermissions.Ensure(OrgPermissions.CanInvite(membership.Role), "You cannot view invites.");
+
+        return await _db.Invites
+            .AsNoTracking()
+            .Where(i => i.OrganizationId == orgId && i.Status == InviteStatus.Pending)
+            .OrderBy(i => i.Email)
+            .ToListAsync(ct);
+    }
+
+    public async Task RevokeInviteAsync(
+        Guid orgId,
+        User actor,
+        Guid inviteId,
+        CancellationToken ct = default)
+    {
+        var membership = await _users.RequireActiveMembershipAsync(orgId, actor.Id, ct);
+        OrgPermissions.Ensure(OrgPermissions.CanInvite(membership.Role), "You cannot revoke invites.");
+
+        var invite = await _db.Invites.SingleOrDefaultAsync(
+            i => i.Id == inviteId && i.OrganizationId == orgId,
+            ct);
+        if (invite is null)
+        {
+            throw new DomainException("Invite not found.");
+        }
+
+        if (invite.Status != InviteStatus.Pending)
+        {
+            throw new DomainException("Invite is not pending.");
+        }
+
+        invite.Status = InviteStatus.Revoked;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.MembershipInviteRevoked,
+            nameof(Invite),
+            invite.Id,
+            new { invite.Email });
+        await _db.SaveChangesAsync(ct);
     }
 
     public async Task<OrganizationMembership> AcceptInviteAsync(

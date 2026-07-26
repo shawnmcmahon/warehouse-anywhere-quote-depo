@@ -1,41 +1,89 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { PageHeader } from "../ui/PageHeader";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
 import { TextAreaField, TextField } from "../ui/Field";
-import { EmptyState } from "../ui/States";
+import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { RequestStatusBadge } from "../ui/StatusBadge";
 import { HeadRow, Row, TBody, THead, TH, TD, Table } from "../ui/Table";
 import { day, truncate } from "../lib/format";
-import { organizations, requests } from "../lib/fixtures";
+import { endpoints, useDataRefresh, useOrg, useOrgRequests } from "../lib/data";
 
-/**
- * Every request in the organization, ordered newest first and numbered like
- * line items on a bill of services. Raising one is the page's single job, so
- * it takes the hazard button and opens in place rather than on its own route.
- */
 export default function RequestsList() {
   const { orgId = "" } = useParams<{ orgId: string }>();
-  const org = organizations[orgId];
+  const orgQuery = useOrg(orgId);
+  const requestsQuery = useOrgRequests(orgId);
+  const { invalidate } = useDataRefresh();
   const [drafting, setDrafting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const orgRequests = requests.filter(
-    (request) => request.organizationId === orgId,
-  );
+  const org = orgQuery.data;
+  const orgRequests = requestsQuery.data ?? [];
   const openCount = orgRequests.filter(
     (request) => request.status === "Open",
   ).length;
 
+  if (orgQuery.loading || requestsQuery.loading) {
+    return <LoadingState label="Loading requests" />;
+  }
+
+  if (orgQuery.error || requestsQuery.error) {
+    return (
+      <ErrorState
+        title="Could not load requests"
+        body={orgQuery.error ?? requestsQuery.error ?? "Unknown error"}
+      />
+    );
+  }
+
+  if (!org) {
+    return (
+      <EmptyState
+        title="Organization not found"
+        body="You may not have access to this organization, or it may have been removed."
+      />
+    );
+  }
+
+  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const title = String(data.get("title") ?? "").trim();
+    const description = String(data.get("description") ?? "").trim();
+    if (!title) {
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await endpoints.orgs.requests.create(orgId, {
+        title,
+        description: description || null,
+      });
+      form.reset();
+      setDrafting(false);
+      invalidate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not raise request.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow={org?.name ?? "Organization"}
+        eyebrow={org.name}
         title="Requests"
         description="Each request is issued as a sheet with one public link. Vendors price the same fields, so the bids tabulate straight across."
         crumbs={[
           { label: "Dashboard", to: "/app" },
-          { label: org?.name ?? "Organization" },
+          { label: org.name },
           { label: "Requests" },
         ]}
         actions={
@@ -51,17 +99,11 @@ export default function RequestsList() {
       />
 
       {drafting ? (
-        <Panel
-          title="New request"
-          annotation="Issued open for bid"
-        >
-          <form
-            className="flex flex-col gap-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setDrafting(false);
-            }}
-          >
+        <Panel title="New request" annotation="Issued open for bid">
+          {error ? (
+            <ErrorState title="Could not raise request" body={error} className="mb-5" />
+          ) : null}
+          <form className="flex flex-col gap-5" onSubmit={handleCreate}>
             <TextField
               label="Title"
               name="title"
@@ -78,8 +120,13 @@ export default function RequestsList() {
               hint="Stated once here so every bid prices the same work."
             />
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" variant="primary" size="md">
-                Raise request
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                disabled={submitting}
+              >
+                {submitting ? "Raising…" : "Raise request"}
               </Button>
               <Button
                 variant="quiet"
@@ -149,8 +196,13 @@ export default function RequestsList() {
                     <TD figure className="text-xs">
                       {day(request.createdAt)}
                     </TD>
-                    <TD figure className="text-xs text-bp-line">
-                      /r/{request.publicSlug}
+                    <TD figure className="text-xs">
+                      <Link
+                        to={`/r/${request.publicSlug}`}
+                        className="bp-focus text-bp-line underline decoration-dotted underline-offset-4 hover:text-bp-ink"
+                      >
+                        /r/{request.publicSlug}
+                      </Link>
                     </TD>
                   </Row>
                 ))}

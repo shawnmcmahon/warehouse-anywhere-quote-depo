@@ -1,23 +1,14 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { Button, ButtonLink } from "../ui/Button";
 import { Panel } from "../ui/Panel";
 import { TitleBlock } from "../ui/TitleBlock";
 import { SelectField, TextAreaField, TextField } from "../ui/Field";
 import { RequestStatusBadge } from "../ui/StatusBadge";
-import { EmptyState } from "../ui/States";
-import { day } from "../lib/format";
-import { requests } from "../lib/fixtures";
-
-/**
- * The guest bid form.
- *
- * This is the only screen a vendor sees, and they arrive from a link with no
- * account and no context, so the sheet they are pricing sits beside the form
- * the whole way down rather than above it. No organization branding is shown
- * because the public endpoint does not return the organization.
- */
+import { EmptyState, ErrorState, LoadingState } from "../ui/States";
+import type { QuoteUnit, RequestStatus } from "../lib/api-types";
+import { endpoints, usePublicRequest } from "../lib/data";
 
 const UNIT_OPTIONS = [
   { value: "Monthly", label: "Per month" },
@@ -65,23 +56,43 @@ function GuestFrame({ children }: { children: ReactNode }) {
   );
 }
 
+function parseDateInput(value: FormDataEntryValue | null): string | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  return new Date(`${text}T00:00:00`).toISOString();
+}
+
 export default function PublicQuote() {
   const { slug = "" } = useParams<{ slug: string }>();
-  const request = requests.find((item) => item.publicSlug === slug);
+  const { data: request, loading, error } = usePublicRequest(slug);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submittedTitle, setSubmittedTitle] = useState("");
 
-  if (!request) {
+  if (loading) {
+    return (
+      <GuestFrame>
+        <LoadingState label="Loading request sheet" />
+      </GuestFrame>
+    );
+  }
+
+  if (error || !request) {
     return (
       <GuestFrame>
         <EmptyState
           title="This link is not live"
-          body="The request may have been withdrawn, or the link may be mistyped. Check with whoever sent it to you."
+          body={
+            error ??
+            "The request may have been withdrawn, or the link may be mistyped. Check with whoever sent it to you."
+          }
         />
       </GuestFrame>
     );
   }
 
-  const acceptingQuotes = request.status === "Open";
+  const status = request.status as RequestStatus;
 
   if (submitted) {
     return (
@@ -92,7 +103,7 @@ export default function PublicQuote() {
             Your bid is on the sheet.
           </h1>
           <p className="bp-body m-0 mt-5 text-base text-bp-graphite">
-            It has been logged against “{request.title}” and now sits with the
+            It has been logged against “{submittedTitle}” and now sits with the
             buyer alongside every other bid. They will contact you on the
             details you gave if they move it forward.
           </p>
@@ -116,7 +127,6 @@ export default function PublicQuote() {
   return (
     <GuestFrame>
       <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
-        {/* What you are pricing. */}
         <div className="lg:col-span-5">
           <p className="bp-anno m-0 text-[10px] text-bp-line">
             Request for quote
@@ -137,9 +147,12 @@ export default function PublicQuote() {
             cells={[
               {
                 term: "Status",
-                value: <RequestStatusBadge status={request.status} dot />,
+                value: <RequestStatusBadge status={status} dot />,
               },
-              { term: "Issued", value: day(request.createdAt) },
+              {
+                term: "Sheet",
+                value: request.publicSlug.slice(-8).toUpperCase(),
+              },
             ]}
           />
 
@@ -150,20 +163,51 @@ export default function PublicQuote() {
           </p>
         </div>
 
-        {/* The bid. */}
         <div className="lg:col-span-7">
-          {!acceptingQuotes ? (
+          {!request.acceptingQuotes ? (
             <EmptyState
               title="This request is closed to new bids"
               body="The buyer has stopped accepting submissions on this sheet. If you were asked to bid, contact them directly."
             />
           ) : (
             <Panel title="Submit a bid" annotation="Takes about a minute">
+              {submitError ? (
+                <ErrorState
+                  title="Could not submit bid"
+                  body={submitError}
+                  className="mb-5"
+                />
+              ) : null}
               <form
                 className="flex flex-col gap-6"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  setSubmitted(true);
+                  const data = new FormData(event.currentTarget);
+                  setSubmitting(true);
+                  setSubmitError(null);
+                  void endpoints.public
+                    .submitQuote(slug, {
+                      businessName: String(data.get("businessName") ?? "").trim(),
+                      amount: Number(data.get("amount")),
+                      unit: String(data.get("unit") ?? "Monthly") as QuoteUnit,
+                      startAt: parseDateInput(data.get("startAt")),
+                      endAt: parseDateInput(data.get("endAt")),
+                      contactName: String(data.get("contactName") ?? "").trim(),
+                      contactPhone:
+                        String(data.get("contactPhone") ?? "").trim() || null,
+                      contactEmail: String(data.get("contactEmail") ?? "").trim(),
+                      notes: String(data.get("notes") ?? "").trim() || null,
+                    })
+                    .then(() => {
+                      setSubmittedTitle(request.title);
+                      setSubmitted(true);
+                    })
+                    .catch((err: unknown) => {
+                      setSubmitError(
+                        err instanceof Error ? err.message : "Submission failed.",
+                      );
+                    })
+                    .finally(() => setSubmitting(false));
                 }}
               >
                 <TextField
@@ -252,8 +296,13 @@ export default function PublicQuote() {
                 />
 
                 <div className="flex flex-wrap items-center gap-4">
-                  <Button type="submit" variant="primary" size="lg">
-                    Submit bid
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    disabled={submitting}
+                  >
+                    {submitting ? "Submitting…" : "Submit bid"}
                   </Button>
                   <p className="bp-body m-0 text-xs text-bp-graphite">
                     No account required.{" "}

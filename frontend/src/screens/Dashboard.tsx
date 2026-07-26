@@ -1,34 +1,24 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PageHeader } from "../ui/PageHeader";
 import { ButtonLink } from "../ui/Button";
-import { EmptyState } from "../ui/States";
+import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { cx } from "../lib/cx";
 import { canManageOrg } from "../lib/api-types";
 import type { DashboardOrgResponse } from "../lib/api-types";
-import { dashboardOrgs } from "../lib/fixtures";
+import { useDashboardOrgs } from "../lib/data";
 
-/**
- * The dashboard answers one question: where is work waiting on me?
- *
- * Counts are set as drawing figures, and the only ones that take hazard yellow
- * are the two that represent a decision someone is waiting on — quotes to
- * review and join requests to answer. Open requests are context, not a task,
- * so they stay in ink.
- */
-
-type CountCellProps = {
+function CountCell({
+  label,
+  value,
+  decision = false,
+}: {
   label: string;
   value: number;
-  /** Non-zero values here are blocking somebody. */
   decision?: boolean;
-};
-
-function CountCell({ label, value, decision = false }: CountCellProps) {
+}) {
   const waiting = decision && value > 0;
   return (
     <div className="relative flex flex-col justify-between gap-2 bg-bp-vellum px-3 pb-3 pt-3.5">
-      {/* A hazard rule rather than a hazard fill: the filled element on this
-          card is the action button, and there is only ever one of those. */}
       {waiting ? (
         <span
           aria-hidden="true"
@@ -110,7 +100,9 @@ function OrgCard({ org }: { org: DashboardOrgResponse }) {
             variant={waiting > 0 ? "primary" : "secondary"}
             size="sm"
           >
-            {waiting > 0 ? `Review ${waiting} item${waiting === 1 ? "" : "s"}` : "View requests"}
+            {waiting > 0
+              ? `Review ${waiting} item${waiting === 1 ? "" : "s"}`
+              : "View requests"}
           </ButtonLink>
           {manages ? (
             <ButtonLink
@@ -128,14 +120,24 @@ function OrgCard({ org }: { org: DashboardOrgResponse }) {
 }
 
 export default function Dashboard() {
-  const orgs = dashboardOrgs;
-  const totalWaiting = orgs.reduce(
+  const { data: orgs, loading, error } = useDashboardOrgs();
+  const totalWaiting = (orgs ?? []).reduce(
     (sum, org) =>
       sum +
       org.pendingQuoteCount +
       (canManageOrg(org.role) ? org.pendingJoinRequestCount : 0),
     0,
   );
+
+  if (loading) {
+    return <LoadingState label="Loading your organizations" />;
+  }
+
+  if (error) {
+    return <ErrorState title="Could not load dashboard" body={error} />;
+  }
+
+  const list = orgs ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -154,7 +156,7 @@ export default function Dashboard() {
         }
       />
 
-      {orgs.length === 0 ? (
+      {list.length === 0 ? (
         <EmptyState
           title="No organizations yet"
           body="Create an organization to start raising requests, or ask to join one that already exists."
@@ -166,7 +168,7 @@ export default function Dashboard() {
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
-          {orgs.map((org) => (
+          {list.map((org) => (
             <OrgCard key={org.organizationId} org={org} />
           ))}
         </div>

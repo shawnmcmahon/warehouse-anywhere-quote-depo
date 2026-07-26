@@ -1,14 +1,9 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
-
-/**
- * Sign in.
- *
- * Presentation only — the identity provider, the redirect and the token
- * exchange are wired separately. The form and the Google control are shaped to
- * the Cognito hosted flow so that wiring is a change of handler, not layout.
- */
+import { ErrorState } from "../ui/States";
+import { useAuth } from "../lib/auth/AuthProvider";
 
 function GoogleMark() {
   return (
@@ -39,6 +34,46 @@ function GoogleMark() {
 }
 
 export default function SignIn() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { signInWithEmail, signInWithGoogle, useDevAuth } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const redirectTo =
+    (location.state as { from?: string } | null)?.from ?? "/app";
+
+  async function handleEmailSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const form = event.currentTarget;
+    const email = String(new FormData(form).get("email") ?? "").trim();
+    if (!email) {
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await signInWithEmail(email);
+      if (useDevAuth) {
+        navigate(redirectTo, { replace: true });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed.");
+      setSubmitting(false);
+    }
+  }
+
+  async function handleGoogle() {
+    setError(null);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed.");
+    }
+  }
+
   return (
     <div className="bp-grid flex min-h-screen flex-col bg-bp-vellum text-bp-ink">
       <header className="border-b border-bp-ink bg-bp-stock">
@@ -63,6 +98,7 @@ export default function SignIn() {
           <div className="border-b border-bp-ink bg-bp-stock px-6 py-3">
             <p className="bp-anno m-0 text-[9px] text-bp-graphite">
               Access control
+              {useDevAuth ? " · dev auth" : ""}
             </p>
           </div>
 
@@ -73,9 +109,15 @@ export default function SignIn() {
               on a link do not need an account.
             </p>
 
+            {error ? (
+              <div className="mt-5">
+                <ErrorState title="Sign-in failed" body={error} />
+              </div>
+            ) : null}
+
             <form
               className="mt-7 flex flex-col gap-5"
-              onSubmit={(event) => event.preventDefault()}
+              onSubmit={handleEmailSubmit}
             >
               <TextField
                 label="Work email"
@@ -85,21 +127,36 @@ export default function SignIn() {
                 autoComplete="email"
                 placeholder="you@company.com"
               />
-              <Button type="submit" variant="primary" size="lg" fullWidth>
-                Continue
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                disabled={submitting}
+              >
+                {submitting ? "Signing in…" : "Continue"}
               </Button>
             </form>
 
-            <div className="my-6 flex items-center gap-3" aria-hidden="true">
-              <span className="h-px flex-1 bg-bp-ink/25" />
-              <span className="bp-anno text-[8px] text-bp-graphite">or</span>
-              <span className="h-px flex-1 bg-bp-ink/25" />
-            </div>
+            {!useDevAuth ? (
+              <>
+                <div className="my-6 flex items-center gap-3" aria-hidden="true">
+                  <span className="h-px flex-1 bg-bp-ink/25" />
+                  <span className="bp-anno text-[8px] text-bp-graphite">or</span>
+                  <span className="h-px flex-1 bg-bp-ink/25" />
+                </div>
 
-            <Button variant="secondary" size="lg" fullWidth>
-              <GoogleMark />
-              Sign in with Google
-            </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  onClick={() => void handleGoogle()}
+                >
+                  <GoogleMark />
+                  Sign in with Google
+                </Button>
+              </>
+            ) : null}
 
             <p className="bp-body m-0 mt-7 text-xs text-bp-graphite">
               Bidding on a request?{" "}

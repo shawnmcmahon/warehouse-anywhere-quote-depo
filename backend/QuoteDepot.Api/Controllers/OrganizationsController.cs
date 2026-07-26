@@ -74,6 +74,16 @@ public class OrganizationsController : ControllerBase
         return Ok(members.Select(MemberResponse.From).ToList());
     }
 
+    [HttpGet("{orgId:guid}/invites")]
+    public async Task<ActionResult<IReadOnlyList<InviteResponse>>> ListInvites(
+        Guid orgId,
+        CancellationToken cancellationToken)
+    {
+        var user = await _users.RequireUserAsync(User, cancellationToken);
+        var invites = await _orgs.ListInvitesAsync(orgId, user, cancellationToken);
+        return Ok(invites.Select(InviteResponse.From).ToList());
+    }
+
     [HttpPost("{orgId:guid}/invites")]
     public async Task<ActionResult<InviteResponse>> Invite(
         Guid orgId,
@@ -88,6 +98,17 @@ public class OrganizationsController : ControllerBase
 
         var invite = await _orgs.InviteAsync(orgId, user, request.Email, role, cancellationToken);
         return Ok(InviteResponse.From(invite));
+    }
+
+    [HttpDelete("{orgId:guid}/invites/{inviteId:guid}")]
+    public async Task<IActionResult> RevokeInvite(
+        Guid orgId,
+        Guid inviteId,
+        CancellationToken cancellationToken)
+    {
+        var user = await _users.RequireUserAsync(User, cancellationToken);
+        await _orgs.RevokeInviteAsync(orgId, user, inviteId, cancellationToken);
+        return NoContent();
     }
 
     [HttpPost("invites/accept")]

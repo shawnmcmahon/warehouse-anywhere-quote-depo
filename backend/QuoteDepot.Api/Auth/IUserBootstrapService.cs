@@ -25,7 +25,8 @@ public record PendingInviteSummary(
     Guid OrganizationId,
     string OrganizationName,
     string Role,
-    string Email);
+    string Email,
+    string Token);
 
 public record JoinRequestSummary(
     Guid JoinRequestId,

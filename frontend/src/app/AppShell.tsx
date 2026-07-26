@@ -1,6 +1,8 @@
-import { Link, NavLink, Outlet, useMatch, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useMatch, useNavigate } from "react-router";
 import { cx } from "../lib/cx";
-import { currentUser, dashboardOrgs } from "../lib/fixtures";
+import { canManageOrg } from "../lib/api-types";
+import { useAuth } from "../lib/auth/AuthProvider";
+import { useDashboardOrgs } from "../lib/data";
 
 /**
  * The signed-in frame.
@@ -23,11 +25,14 @@ function navClass({ isActive }: { isActive: boolean }): string {
 
 export function AppShell() {
   const navigate = useNavigate();
-  // A layout route only sees its own params, so read the org off the URL.
+  const { bootstrap, signOut } = useAuth();
+  const { data: dashboardOrgs = [] } = useDashboardOrgs();
   const orgMatch = useMatch("/app/orgs/:orgId/*");
   const activeOrg = dashboardOrgs.find(
     (org) => org.organizationId === orgMatch?.params.orgId,
   );
+  const showSettings =
+    activeOrg !== undefined && canManageOrg(activeOrg.role);
 
   return (
     <div className="flex min-h-screen flex-col bg-bp-vellum text-bp-ink">
@@ -52,9 +57,9 @@ export function AppShell() {
 
           <div className="bp-anno flex flex-wrap items-center gap-x-5 gap-y-1 text-[9px] text-bp-graphite">
             <span className="normal-case tracking-normal">
-              {currentUser.email}
+              {bootstrap?.email}
             </span>
-            <Link to="/" className="bp-focus hover:text-bp-line">
+            <Link to="/" className="bp-focus hover:text-bp-line" onClick={signOut}>
               Sign out
             </Link>
           </div>
@@ -100,12 +105,14 @@ export function AppShell() {
               >
                 Requests
               </NavLink>
-              <NavLink
-                to={`/app/orgs/${activeOrg.organizationId}/settings`}
-                className={navClass}
-              >
-                Settings
-              </NavLink>
+              {showSettings ? (
+                <NavLink
+                  to={`/app/orgs/${activeOrg.organizationId}/settings`}
+                  className={navClass}
+                >
+                  Settings
+                </NavLink>
+              ) : null}
             </nav>
           </div>
         </div>
