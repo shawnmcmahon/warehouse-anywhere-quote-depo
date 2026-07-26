@@ -1,9 +1,9 @@
 /**
  * Placeholder data, typed against the real wire shapes in `api-types`.
  *
- * This is the seam for wiring the app to the API: every screen reads from here
- * and from nowhere else, so replacing a fixture import with a query hook is a
- * one-line change per screen and touches no markup.
+ * This is the seam for wiring the app to the API: screens read through the
+ * data hooks in `lib/data`, which today delegate here. Replacing a hook's
+ * internals with a fetch is a one-line change per hook and touches no markup.
  *
  * The records continue the worked example from the design explorations — the
  * Reno–Sparks overflow storage request and its three bids — so the app screens
@@ -18,6 +18,7 @@ import type {
   JoinRequestResponse,
   MemberResponse,
   OrgResponse,
+  PublicRequestResponse,
   QuoteResponse,
   RequestResponse,
 } from "./api-types";
@@ -25,6 +26,26 @@ import type {
 export const CASCADE_ORG_ID = "8f14e45f-ceea-467a-9575-1b2c3d4e5f60";
 export const HARBOR_ORG_ID = "3c59dc04-8e88-4504-9b9d-2f4a5b6c7d80";
 export const FLAGSHIP_REQUEST_ID = "b6d767d2-f8ed-4cb9-9b30-1a2b3c4d5e6f";
+export const FLAGSHIP_PUBLIC_SLUG = "overflow-pallet-storage-reno-4f2a";
+
+/** Fixture-only scope key — the API returns org-scoped lists instead. */
+export type OrgScopedMember = MemberResponse & { organizationId: string };
+export type OrgScopedInvite = InviteResponse & { organizationId: string };
+export type OrgScopedJoinRequest = JoinRequestResponse & { organizationId: string };
+export type OrgScopedAuditEvent = AuditEventResponse & { organizationId: string };
+
+export type FixtureState = {
+  currentUser: BootstrapResponse;
+  dashboardOrgs: DashboardOrgResponse[];
+  organizations: Record<string, OrgResponse>;
+  requests: RequestResponse[];
+  quotes: QuoteResponse[];
+  members: OrgScopedMember[];
+  invites: OrgScopedInvite[];
+  joinRequests: OrgScopedJoinRequest[];
+  auditEvents: OrgScopedAuditEvent[];
+  browsableOrgs: OrgResponse[];
+};
 
 export const currentUser: BootstrapResponse = {
   userId: "1679091c-5a88-4faf-b3a6-9f2b4c8d1e70",
@@ -95,7 +116,7 @@ export const requests: RequestResponse[] = [
     title: "Overflow pallet storage + weekly outbound",
     description:
       "1,200 pallet positions in the Reno–Sparks corridor for a six month peak. Racked storage, weekly outbound to eleven stores, EDI 856 on despatch. Certificate of insurance required before award.",
-    publicSlug: "overflow-pallet-storage-reno-4f2a",
+    publicSlug: FLAGSHIP_PUBLIC_SLUG,
     status: "Open",
     createdAt: "2026-04-02T16:20:00+00:00",
   },
@@ -127,6 +148,16 @@ export const requests: RequestResponse[] = [
     publicSlug: "seasonal-crossdock-q4-8a13",
     status: "Closed",
     createdAt: "2025-11-18T11:00:00+00:00",
+  },
+  {
+    id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    organizationId: HARBOR_ORG_ID,
+    title: "Shared cross-dock — member inbound",
+    description:
+      "Consolidated inbound for co-op members, two shifts a day, palletized freight only.",
+    publicSlug: "harbor-crossdock-inbound-3c8f",
+    status: "Open",
+    createdAt: "2026-04-10T11:30:00+00:00",
   },
 ];
 
@@ -207,9 +238,10 @@ export const quotedPositions: Record<string, number> = {
   "Washoe Storage Co.": 1200,
 };
 
-export const members: MemberResponse[] = [
+export const members: OrgScopedMember[] = [
   {
     membershipId: "aab32389-1b7c-4f2d-8e3a-6e7f80911223",
+    organizationId: CASCADE_ORG_ID,
     userId: currentUser.userId,
     email: currentUser.email,
     name: "Dana Whitfield",
@@ -218,6 +250,7 @@ export const members: MemberResponse[] = [
   },
   {
     membershipId: "9bf31c7f-f062-4bd4-a4de-7f8091122334",
+    organizationId: CASCADE_ORG_ID,
     userId: "c9f0f895-fb98-4b1d-9b0a-8091122334455",
     email: "theo.marsh@cascadedist.com",
     name: "Theo Marsh",
@@ -226,6 +259,7 @@ export const members: MemberResponse[] = [
   },
   {
     membershipId: "45c48cce-2e2d-4fbd-aa1f-911223344556",
+    organizationId: CASCADE_ORG_ID,
     userId: "d3d94468-02a4-4a9b-8f4a-1122334455667",
     email: "rae.okonkwo@cascadedist.com",
     name: "Rae Okonkwo",
@@ -234,17 +268,28 @@ export const members: MemberResponse[] = [
   },
   {
     membershipId: "6512bd43-d9ca-4e79-9a1e-223344556677",
+    organizationId: CASCADE_ORG_ID,
     userId: "c20ad4d7-6fe9-4779-9a1e-334455667788",
     email: "former.planner@cascadedist.com",
     name: "Jules Ferrante",
     role: "Member",
     status: "Revoked",
   },
+  {
+    membershipId: "d4c74594-8b1c-4e9a-9f2e-33445566778899",
+    organizationId: HARBOR_ORG_ID,
+    userId: currentUser.userId,
+    email: currentUser.email,
+    name: "Dana Whitfield",
+    role: "Member",
+    status: "Active",
+  },
 ];
 
-export const invites: InviteResponse[] = [
+export const invites: OrgScopedInvite[] = [
   {
     inviteId: "c51ce410-c124-4f13-9b2a-445566778899",
+    organizationId: CASCADE_ORG_ID,
     email: "nadia.pratt@cascadedist.com",
     role: "Admin",
     status: "Pending",
@@ -252,6 +297,7 @@ export const invites: InviteResponse[] = [
   },
   {
     inviteId: "aab32389-1b7c-4f2d-8e3a-5566778899aa",
+    organizationId: CASCADE_ORG_ID,
     email: "sam.iyer@cascadedist.com",
     role: "Member",
     status: "Pending",
@@ -259,9 +305,10 @@ export const invites: InviteResponse[] = [
   },
 ];
 
-export const joinRequests: JoinRequestResponse[] = [
+export const joinRequests: OrgScopedJoinRequest[] = [
   {
     joinRequestId: "9bf31c7f-f062-4bd4-a4de-66778899aabb",
+    organizationId: CASCADE_ORG_ID,
     userId: "c74d97b0-1eae-4b3d-a8b7-778899aabbcc",
     email: "l.carrasco@cascadedist.com",
     status: "Pending",
@@ -269,6 +316,7 @@ export const joinRequests: JoinRequestResponse[] = [
   },
   {
     joinRequestId: "70efdf2e-c9b0-4a1e-9b2c-8899aabbccdd",
+    organizationId: CASCADE_ORG_ID,
     userId: "6f4922f4-5568-4a1e-8e2b-99aabbccddee",
     email: "contractor@northbayops.com",
     status: "Pending",
@@ -276,9 +324,10 @@ export const joinRequests: JoinRequestResponse[] = [
   },
 ];
 
-export const auditEvents: AuditEventResponse[] = [
+export const auditEvents: OrgScopedAuditEvent[] = [
   {
     id: "1f0e3dad-9990-4b0f-8e5c-aabbccddeeff",
+    organizationId: CASCADE_ORG_ID,
     actorUserId: null,
     actorEmail: null,
     action: "quote.submitted",
@@ -289,6 +338,7 @@ export const auditEvents: AuditEventResponse[] = [
   },
   {
     id: "98f13708-2104-4bcd-9a1f-bbccddeeff00",
+    organizationId: CASCADE_ORG_ID,
     actorUserId: currentUser.userId,
     actorEmail: currentUser.email,
     action: "quote.status_changed",
@@ -299,6 +349,7 @@ export const auditEvents: AuditEventResponse[] = [
   },
   {
     id: "3c59dc04-8e88-4504-9b9d-ccddeeff0011",
+    organizationId: CASCADE_ORG_ID,
     actorUserId: null,
     actorEmail: null,
     action: "quote.submitted",
@@ -309,6 +360,7 @@ export const auditEvents: AuditEventResponse[] = [
   },
   {
     id: "b6d767d2-f8ed-4cb9-9b30-ddeeff001122",
+    organizationId: CASCADE_ORG_ID,
     actorUserId: currentUser.userId,
     actorEmail: currentUser.email,
     action: "request.updated",
@@ -319,6 +371,7 @@ export const auditEvents: AuditEventResponse[] = [
   },
   {
     id: "aab32389-1b7c-4f2d-8e3a-eeff00112233",
+    organizationId: CASCADE_ORG_ID,
     actorUserId: "c9f0f895-fb98-4b1d-9b0a-8091122334455",
     actorEmail: "theo.marsh@cascadedist.com",
     action: "membership.invited",
@@ -329,6 +382,7 @@ export const auditEvents: AuditEventResponse[] = [
   },
   {
     id: "45c48cce-2e2d-4fbd-aa1f-ff0011223344",
+    organizationId: CASCADE_ORG_ID,
     actorUserId: currentUser.userId,
     actorEmail: currentUser.email,
     action: "request.created",
@@ -351,3 +405,71 @@ export const browsableOrgs: OrgResponse[] = [
     logoPath: null,
   },
 ];
+
+/** Deep clone of seed data for the in-memory fixture store. */
+export function createInitialState(): FixtureState {
+  return structuredClone({
+    currentUser,
+    dashboardOrgs,
+    organizations,
+    requests,
+    quotes,
+    members,
+    invites,
+    joinRequests,
+    auditEvents,
+    browsableOrgs,
+  });
+}
+
+export function getMembers(orgId: string, state: FixtureState): OrgScopedMember[] {
+  return state.members.filter((member) => member.organizationId === orgId);
+}
+
+export function getInvites(orgId: string, state: FixtureState): OrgScopedInvite[] {
+  return state.invites.filter((invite) => invite.organizationId === orgId);
+}
+
+export function getJoinRequests(
+  orgId: string,
+  state: FixtureState,
+): OrgScopedJoinRequest[] {
+  return state.joinRequests.filter((item) => item.organizationId === orgId);
+}
+
+export function getAuditEvents(
+  orgId: string,
+  state: FixtureState,
+): OrgScopedAuditEvent[] {
+  return state.auditEvents.filter((event) => event.organizationId === orgId);
+}
+
+export function getOrgRequests(orgId: string, state: FixtureState): RequestResponse[] {
+  return state.requests.filter((request) => request.organizationId === orgId);
+}
+
+export function getRequestQuotes(
+  requestId: string,
+  state: FixtureState,
+): QuoteResponse[] {
+  return state.quotes.filter((quote) => quote.requestId === requestId);
+}
+
+export function getOrgRole(
+  orgId: string,
+  state: FixtureState,
+): import("./api-types").OrgRole | null {
+  const org = state.dashboardOrgs.find((item) => item.organizationId === orgId);
+  return org?.role ?? null;
+}
+
+/** Maps a full request to the public wire shape. */
+export function toPublicRequest(request: RequestResponse): PublicRequestResponse {
+  return {
+    title: request.title,
+    description: request.description,
+    status: request.status,
+    publicSlug: request.publicSlug,
+    acceptingQuotes: request.status === "Open",
+  };
+}

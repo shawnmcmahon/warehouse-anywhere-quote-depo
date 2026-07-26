@@ -14,6 +14,7 @@ public static class AuditActions
     public const string OrganizationLogoUploaded = "organization.logo_uploaded";
     public const string MembershipInvited = "membership.invited";
     public const string MembershipInviteAccepted = "membership.invite_accepted";
+    public const string MembershipInviteRevoked = "membership.invite_revoked";
     public const string MembershipRoleChanged = "membership.role_changed";
     public const string MembershipRevoked = "membership.revoked";
     public const string JoinRequestCreated = "join_request.created";

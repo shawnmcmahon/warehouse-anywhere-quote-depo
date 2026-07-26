@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { PageHeader } from "../ui/PageHeader";
 import { Button, ButtonLink } from "../ui/Button";
@@ -12,7 +12,19 @@ import { day, money, publicRequestUrl, quoteStatusLabel, rate } from "../lib/for
 import { compareBids, formatMonths, isActive } from "../lib/quote-math";
 import type { BidRow } from "../lib/quote-math";
 import type { QuoteStatus } from "../lib/api-types";
-import { organizations, quotes, requests } from "../lib/fixtures";
+import {
+  QUOTE_TRANSITIONS,
+  REQUEST_TRANSITIONS,
+} from "../lib/api-types";
+import {
+  endpoints,
+  useCanManageOrg,
+  useDataRefresh,
+  useOrg,
+  useRequest,
+  useRequestQuotes,
+} from "../lib/data";
+import { ErrorState, LoadingState } from "../ui/States";
 
 /**
  * The request sheet.
@@ -91,13 +103,20 @@ export default function RequestDetail() {
     requestId: string;
   }>();
 
-  const org = organizations[orgId];
-  const request = requests.find((item) => item.id === requestId);
-  const requestQuotes = quotes.filter((quote) => quote.requestId === requestId);
+  const orgQuery = useOrg(orgId);
+  const requestQuery = useRequest(orgId, requestId);
+  const quotesQuery = useRequestQuotes(orgId, requestId);
+  const canManageQuotes = useCanManageOrg(orgId);
+  const { invalidate } = useDataRefresh();
+
+  const org = orgQuery.data;
+  const request = requestQuery.data;
+  const requestQuotes = quotesQuery.data ?? [];
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [pendingAccept, setPendingAccept] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [mutating, setMutating] = useState(false);
   const confirmRef = useRef<HTMLDivElement>(null);
 
   // Awarding is triggered from a row that can be well down a long tabulation,
@@ -112,7 +131,22 @@ export default function RequestDetail() {
     confirmRef.current.focus({ preventScroll: true });
   }, [pendingAccept]);
 
-  if (!request) {
+  if (orgQuery.loading || requestQuery.loading || quotesQuery.loading) {
+    return <LoadingState label="Loading request sheet" />;
+  }
+
+  if (orgQuery.error || requestQuery.error || quotesQuery.error) {
+    return (
+      <ErrorState
+        title="Could not load request"
+        body={
+          orgQuery.error ?? requestQuery.error ?? quotesQuery.error ?? "Unknown error"
+        }
+      />
+    );
+  }
+
+  if (!request || request.organizationId !== orgId) {
     return (
       <EmptyState
         title="Request not found"
@@ -141,6 +175,50 @@ export default function RequestDetail() {
     }
   }
 
+  async function transitionRequest(status: "Closed" | "Cancelled") {
+    if (!request) return;
+    setMutating(true);
+    try {
+      await endpoints.orgs.requests.transition(orgId, request.id, status);
+      invalidate();
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  async function transitionQuote(quoteId: string, status: QuoteStatus) {
+    setMutating(true);
+    try {
+      await endpoints.orgs.requests.quotes.transition(
+        orgId,
+        requestId,
+        quoteId,
+        status,
+      );
+      invalidate();
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  async function confirmAccept() {
+    if (!pendingAccept) return;
+    setMutating(true);
+    try {
+      await endpoints.orgs.requests.quotes.accept(
+        orgId,
+        requestId,
+        pendingAccept,
+      );
+      setPendingAccept(null);
+      invalidate();
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  const requestTransitions = REQUEST_TRANSITIONS[request.status];
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -154,14 +232,28 @@ export default function RequestDetail() {
           { label: request.title },
         ]}
         actions={
-          request.status === "Open" ? (
+          request.status === "Open" && requestTransitions.length > 0 ? (
             <>
-              <Button variant="secondary" size="md">
-                Close to new bids
-              </Button>
-              <Button variant="danger" size="md">
-                Cancel request
-              </Button>
+              {requestTransitions.includes("Closed") ? (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  disabled={mutating}
+                  onClick={() => void transitionRequest("Closed")}
+                >
+                  Close to new bids
+                </Button>
+              ) : null}
+              {requestTransitions.includes("Cancelled") ? (
+                <Button
+                  variant="danger"
+                  size="md"
+                  disabled={mutating}
+                  onClick={() => void transitionRequest("Cancelled")}
+                >
+                  Cancel request
+                </Button>
+              ) : null}
             </>
           ) : null
         }
@@ -226,7 +318,8 @@ export default function RequestDetail() {
             <Button
               variant="primary"
               size="md"
-              onClick={() => setPendingAccept(null)}
+              disabled={mutating}
+              onClick={() => void confirmAccept()}
             >
               Award to {acceptTarget.businessName}
             </Button>
@@ -379,27 +472,47 @@ export default function RequestDetail() {
                             <span className="bp-stamp inline-block px-2 py-1 text-[9px]">
                               Awarded
                             </span>
-                          ) : (
+                          ) : canManageQuotes ? (
                             <span className="flex flex-wrap gap-2">
-                              {quote.status === "Submitted" ? (
-                                <DeepButton tone="advance">
+                              {QUOTE_TRANSITIONS[quote.status].includes(
+                                "UnderReview",
+                              ) ? (
+                                <DeepButton
+                                  tone="advance"
+                                  disabled={mutating}
+                                  onClick={() =>
+                                    void transitionQuote(quote.id, "UnderReview")
+                                  }
+                                >
                                   Move to review
                                 </DeepButton>
                               ) : null}
-                              {quote.status === "UnderReview" ? (
+                              {QUOTE_TRANSITIONS[quote.status].includes(
+                                "Accepted",
+                              ) ? (
                                 <DeepButton
                                   tone="accept"
+                                  disabled={mutating}
                                   onClick={() => setPendingAccept(quote.id)}
                                 >
                                   Accept
                                 </DeepButton>
                               ) : null}
-                              {quote.status === "Submitted" ||
-                              quote.status === "UnderReview" ? (
-                                <DeepButton tone="reject">Reject</DeepButton>
+                              {QUOTE_TRANSITIONS[quote.status].includes(
+                                "Rejected",
+                              ) ? (
+                                <DeepButton
+                                  tone="reject"
+                                  disabled={mutating}
+                                  onClick={() =>
+                                    void transitionQuote(quote.id, "Rejected")
+                                  }
+                                >
+                                  Reject
+                                </DeepButton>
                               ) : null}
                             </span>
-                          )}
+                          ) : null}
                         </td>
                       </tr>
 

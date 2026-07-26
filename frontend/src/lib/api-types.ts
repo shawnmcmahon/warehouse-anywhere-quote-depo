@@ -126,6 +126,7 @@ export type PendingInviteSummary = {
   organizationName: string;
   role: OrgRole;
   email: string;
+  token: string;
 };
 
 export type JoinRequestSummary = {

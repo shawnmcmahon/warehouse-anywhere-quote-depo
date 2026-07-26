@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { PageHeader } from "../ui/PageHeader";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
 import { SelectField, TextAreaField, TextField } from "../ui/Field";
-import { EmptyState } from "../ui/States";
+import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import {
   JoinRequestStatusBadge,
   MembershipStatusBadge,
@@ -13,21 +13,16 @@ import { HeadRow, Row, TBody, THead, TH, TD, Table } from "../ui/Table";
 import { auditDescription, dayTime, initials } from "../lib/format";
 import type { OrgRole } from "../lib/api-types";
 import {
-  auditEvents,
-  invites,
-  joinRequests,
-  members,
-  organizations,
-} from "../lib/fixtures";
-
-/**
- * Everything about the organization itself: who is in it, who wants in, what
- * it looks like, and what has been done to it.
- *
- * The audit panel is set as the drawing's revision table, which is the same
- * artifact doing the same job — a numbered, dated, attributed record of every
- * change to the sheet.
- */
+  endpoints,
+  useCanManageOrg,
+  useDataRefresh,
+  useOrg,
+  useOrgAuditEvents,
+  useOrgInvites,
+  useOrgJoinRequests,
+  useOrgMembers,
+  useOrgRole,
+} from "../lib/data";
 
 const ROLE_OPTIONS = [
   { value: "Admin", label: "Admin" },
@@ -42,9 +37,52 @@ const ROLE_DUTY: Record<OrgRole, string> = {
 
 export default function OrgSettings() {
   const { orgId = "" } = useParams<{ orgId: string }>();
-  const org = organizations[orgId];
+  const role = useOrgRole(orgId);
+  const canManage = useCanManageOrg(orgId);
+  const isOwner = role === "Owner";
+  const orgQuery = useOrg(orgId);
+  const membersQuery = useOrgMembers(orgId);
+  const invitesQuery = useOrgInvites(orgId);
+  const joinRequestsQuery = useOrgJoinRequests(orgId);
+  const auditQuery = useOrgAuditEvents(orgId);
+  const { invalidate } = useDataRefresh();
   const [inviting, setInviting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  if (
+    orgQuery.loading ||
+    membersQuery.loading ||
+    invitesQuery.loading ||
+    joinRequestsQuery.loading ||
+    auditQuery.loading
+  ) {
+    return <LoadingState label="Loading settings" />;
+  }
+
+  if (
+    orgQuery.error ||
+    membersQuery.error ||
+    invitesQuery.error ||
+    joinRequestsQuery.error ||
+    auditQuery.error
+  ) {
+    return (
+      <ErrorState
+        title="Could not load settings"
+        body={
+          orgQuery.error ??
+          membersQuery.error ??
+          invitesQuery.error ??
+          joinRequestsQuery.error ??
+          auditQuery.error ??
+          "Unknown error"
+        }
+      />
+    );
+  }
+
+  const org = orgQuery.data;
   if (!org) {
     return (
       <EmptyState
@@ -54,8 +92,33 @@ export default function OrgSettings() {
     );
   }
 
+  if (!canManage) {
+    return (
+      <EmptyState
+        title="Settings are restricted"
+        body="Only owners and admins can manage organization settings, membership and invites."
+      />
+    );
+  }
+
+  const members = membersQuery.data ?? [];
+  const invites = invitesQuery.data ?? [];
+  const joinRequests = joinRequestsQuery.data ?? [];
+  const auditEvents = auditQuery.data ?? [];
   const pendingJoins = joinRequests.filter((item) => item.status === "Pending");
-  const activeMembers = members.filter((item) => item.status === "Active");
+
+  async function runMutation(action: () => Promise<void>) {
+    setError(null);
+    setBusy(true);
+    try {
+      await action();
+      invalidate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -70,13 +133,31 @@ export default function OrgSettings() {
         ]}
       />
 
+      {error ? <ErrorState title="Action failed" body={error} /> : null}
+
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <Panel title="Organization" annotation="Shown to vendors on public links">
           <form
             className="flex flex-col gap-5"
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              void runMutation(async () => {
+                await endpoints.orgs.update(orgId, {
+                  name: String(data.get("name") ?? "").trim(),
+                  description:
+                    String(data.get("description") ?? "").trim() || null,
+                });
+              });
+            }}
           >
-            <TextField label="Name" name="name" defaultValue={org.name} required />
+            <TextField
+              label="Name"
+              name="name"
+              defaultValue={org.name}
+              required
+              disabled={!isOwner}
+            />
             <TextAreaField
               label="Description"
               name="description"
@@ -84,37 +165,62 @@ export default function OrgSettings() {
               rows={3}
               defaultValue={org.description ?? ""}
               hint="One or two lines about what your organization does."
+              disabled={!isOwner}
             />
 
-            <div className="flex flex-col gap-2">
-              <span className="bp-anno text-[9px] text-bp-ink">Logo</span>
-              <div className="flex items-center gap-4">
-                <span
-                  aria-hidden="true"
-                  className="bp-display flex h-16 w-16 shrink-0 items-center justify-center border border-bp-ink bg-bp-ink text-lg text-bp-hazard"
-                >
-                  {initials(org.name)}
-                </span>
-                <div className="flex flex-col gap-1.5">
-                  <input
-                    type="file"
-                    name="logo"
-                    accept="image/png,image/jpeg,image/webp"
-                    aria-label="Upload a logo"
-                    className="bp-body bp-focus max-w-full text-xs text-bp-graphite file:mr-3 file:cursor-pointer file:border file:border-bp-ink file:bg-bp-stock file:px-3 file:py-1.5 file:font-medium file:text-bp-ink hover:file:bg-bp-ink hover:file:text-bp-vellum"
-                  />
-                  <p className="bp-body m-0 text-xs text-bp-graphite">
-                    PNG, JPEG or WebP, up to 2 MB.
-                  </p>
+            {isOwner ? (
+              <div className="flex flex-col gap-2">
+                <span className="bp-anno text-[9px] text-bp-ink">Logo</span>
+                <div className="flex items-center gap-4">
+                  <span
+                    aria-hidden="true"
+                    className="bp-display flex h-16 w-16 shrink-0 items-center justify-center border border-bp-ink bg-bp-ink text-lg text-bp-hazard"
+                  >
+                    {org.logoPath ? (
+                      <img
+                        src={endpoints.orgs.logoUrl(orgId)}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      initials(org.name)
+                    )}
+                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    <input
+                      type="file"
+                      name="logo"
+                      accept="image/png,image/jpeg,image/webp"
+                      aria-label="Upload a logo"
+                      disabled={busy}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        void runMutation(async () => {
+                          await endpoints.orgs.uploadLogo(orgId, file);
+                        });
+                      }}
+                      className="bp-body bp-focus max-w-full text-xs text-bp-graphite file:mr-3 file:cursor-pointer file:border file:border-bp-ink file:bg-bp-stock file:px-3 file:py-1.5 file:font-medium file:text-bp-ink hover:file:bg-bp-ink hover:file:text-bp-vellum"
+                    />
+                    <p className="bp-body m-0 text-xs text-bp-graphite">
+                      PNG, JPEG or WebP, up to 2 MB.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
 
-            <div>
-              <Button type="submit" variant="secondary" size="md">
-                Save changes
-              </Button>
-            </div>
+            {isOwner ? (
+              <div>
+                <Button type="submit" variant="secondary" size="md" disabled={busy}>
+                  Save changes
+                </Button>
+              </div>
+            ) : (
+              <p className="bp-body m-0 text-sm text-bp-graphite">
+                Only the owner can change the organization name and description.
+              </p>
+            )}
           </form>
         </Panel>
 
@@ -137,7 +243,15 @@ export default function OrgSettings() {
               className="mb-5 flex flex-col gap-4 border border-bp-ink bg-bp-vellum p-4"
               onSubmit={(event) => {
                 event.preventDefault();
-                setInviting(false);
+                const data = new FormData(event.currentTarget);
+                void runMutation(async () => {
+                  await endpoints.orgs.invites.create(orgId, {
+                    email: String(data.get("email") ?? "").trim(),
+                    role: String(data.get("role") ?? "Member") as OrgRole,
+                  });
+                  setInviting(false);
+                  event.currentTarget.reset();
+                });
               }}
             >
               <TextField
@@ -155,7 +269,7 @@ export default function OrgSettings() {
                 hint={ROLE_DUTY.Member}
               />
               <div>
-                <Button type="submit" variant="primary" size="sm">
+                <Button type="submit" variant="primary" size="sm" disabled={busy}>
                   Send invite
                 </Button>
               </div>
@@ -180,7 +294,19 @@ export default function OrgSettings() {
                     <span className="bp-anno border border-bp-graphite/45 px-1.5 py-0.5 text-[8px] text-bp-graphite">
                       {invite.role}
                     </span>
-                    <Button variant="quiet" size="sm">
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() =>
+                        void runMutation(async () => {
+                          await endpoints.orgs.invites.revoke(
+                            orgId,
+                            invite.inviteId,
+                          );
+                        })
+                      }
+                    >
                       Revoke
                     </Button>
                   </span>
@@ -191,11 +317,7 @@ export default function OrgSettings() {
         </Panel>
       </div>
 
-      <Panel
-        title="Members"
-        annotation={`${activeMembers.length} active`}
-        flush
-      >
+      <Panel title="Members" annotation={`${members.length} active`} flush>
         <div className="px-4 pb-2 sm:px-5">
           <Table minWidth={720}>
             <THead>
@@ -208,8 +330,7 @@ export default function OrgSettings() {
             </THead>
             <TBody>
               {members.map((member) => {
-                const isOwner = member.role === "Owner";
-                const revoked = member.status === "Revoked";
+                const isMemberOwner = member.role === "Owner";
                 return (
                   <Row key={member.membershipId}>
                     <TD>
@@ -221,7 +342,7 @@ export default function OrgSettings() {
                       </span>
                     </TD>
                     <TD>
-                      {isOwner || revoked ? (
+                      {isMemberOwner || role !== "Owner" ? (
                         <span className="bp-anno text-[9px] text-bp-graphite">
                           {member.role}
                         </span>
@@ -230,6 +351,17 @@ export default function OrgSettings() {
                           defaultValue={member.role}
                           aria-label={`Role for ${member.name ?? member.email}`}
                           className="bp-input bp-data max-w-[120px] px-2 py-1 text-xs"
+                          disabled={busy}
+                          onChange={(event) => {
+                            const nextRole = event.target.value as OrgRole;
+                            void runMutation(async () => {
+                              await endpoints.orgs.members.changeRole(
+                                orgId,
+                                member.membershipId,
+                                nextRole,
+                              );
+                            });
+                          }}
                         >
                           {ROLE_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -243,16 +375,24 @@ export default function OrgSettings() {
                       <MembershipStatusBadge status={member.status} />
                     </TD>
                     <TD align="right">
-                      {isOwner ? (
+                      {isMemberOwner ? (
                         <span className="bp-anno text-[8px] text-bp-graphite">
                           Owner cannot be removed
                         </span>
-                      ) : revoked ? (
-                        <Button variant="quiet" size="sm">
-                          Restore
-                        </Button>
                       ) : (
-                        <Button variant="danger" size="sm">
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() =>
+                            void runMutation(async () => {
+                              await endpoints.orgs.members.revoke(
+                                orgId,
+                                member.membershipId,
+                              );
+                            })
+                          }
+                        >
                           Revoke access
                         </Button>
                       )}
@@ -295,10 +435,34 @@ export default function OrgSettings() {
                 </div>
                 <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
                   <JoinRequestStatusBadge status={request.status} />
-                  <Button variant="primary" size="sm">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void runMutation(async () => {
+                        await endpoints.orgs.joinRequests.approve(
+                          orgId,
+                          request.joinRequestId,
+                        );
+                      })
+                    }
+                  >
                     Approve
                   </Button>
-                  <Button variant="danger" size="sm">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void runMutation(async () => {
+                        await endpoints.orgs.joinRequests.reject(
+                          orgId,
+                          request.joinRequestId,
+                        );
+                      })
+                    }
+                  >
                     Reject
                   </Button>
                 </div>
@@ -308,7 +472,6 @@ export default function OrgSettings() {
         )}
       </Panel>
 
-      {/* The audit trail is a revision table, because that is what it is. */}
       <Panel
         title="Revision history"
         annotation={`Last ${auditEvents.length} changes`}

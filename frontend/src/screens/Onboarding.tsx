@@ -1,20 +1,17 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../ui/PageHeader";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
 import { TextAreaField, TextField } from "../ui/Field";
-import { EmptyState } from "../ui/States";
+import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { cx } from "../lib/cx";
-import { browsableOrgs, currentUser } from "../lib/fixtures";
-
-/**
- * Getting into an organization.
- *
- * These are three alternatives rather than three steps, so they are set as a
- * choice and deliberately not numbered — numbering would claim an order the
- * content does not have. A radio group carries the semantics and the keyboard
- * behaviour for free.
- */
+import {
+  endpoints,
+  useBrowsableOrgs,
+  useDataRefresh,
+} from "../lib/data";
+import { useAuth } from "../lib/auth/AuthProvider";
 
 type Path = "create" | "invite" | "join";
 
@@ -37,13 +34,44 @@ const PATHS: { id: Path; title: string; blurb: string }[] = [
 ];
 
 export default function Onboarding() {
+  const navigate = useNavigate();
+  const { bootstrap, refreshBootstrap } = useAuth();
+  const { data: browsableOrgs, loading, error } = useBrowsableOrgs();
+  const { invalidate } = useDataRefresh();
   const [path, setPath] = useState<Path>("create");
   const [filter, setFilter] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const invites = currentUser.pendingInvites;
-  const matches = browsableOrgs.filter((org) =>
+  const invites = bootstrap?.pendingInvites ?? [];
+  const matches = (browsableOrgs ?? []).filter((org) =>
     org.name.toLowerCase().includes(filter.trim().toLowerCase()),
   );
+
+  async function runMutation(action: () => Promise<void>, redirect?: string) {
+    setActionError(null);
+    setBusy(true);
+    try {
+      await action();
+      await refreshBootstrap();
+      invalidate();
+      if (redirect) {
+        navigate(redirect, { replace: true });
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Action failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) {
+    return <LoadingState label="Loading organizations" />;
+  }
+
+  if (error) {
+    return <ErrorState title="Could not load organizations" body={error} />;
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -52,6 +80,10 @@ export default function Onboarding() {
         title="Join an organization"
         description="Requests and bids belong to an organization. Pick the way in that matches your situation."
       />
+
+      {actionError ? (
+        <ErrorState title="Action failed" body={actionError} />
+      ) : null}
 
       <fieldset className="m-0 border-0 p-0">
         <legend className="bp-anno mb-3 p-0 text-[9px] text-bp-graphite">
@@ -98,7 +130,18 @@ export default function Onboarding() {
         >
           <form
             className="flex max-w-xl flex-col gap-5"
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              void runMutation(async () => {
+                const org = await endpoints.orgs.create({
+                  name: String(data.get("name") ?? "").trim(),
+                  description:
+                    String(data.get("description") ?? "").trim() || null,
+                });
+                navigate(`/app/orgs/${org.id}/requests`, { replace: true });
+              });
+            }}
           >
             <TextField
               label="Name"
@@ -115,8 +158,8 @@ export default function Onboarding() {
               placeholder="Regional distribution, seven DCs across the Great Basin."
             />
             <div>
-              <Button type="submit" variant="primary" size="lg">
-                Create organization
+              <Button type="submit" variant="primary" size="lg" disabled={busy}>
+                {busy ? "Creating…" : "Create organization"}
               </Button>
             </div>
           </form>
@@ -158,7 +201,19 @@ export default function Onboarding() {
                       Joining as {invite.role}
                     </span>
                   </div>
-                  <Button variant="primary" size="sm">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void runMutation(
+                        async () => {
+                          await endpoints.orgs.invites.accept(invite.token);
+                        },
+                        `/app/orgs/${invite.organizationId}/requests`,
+                      )
+                    }
+                  >
                     Accept invite
                   </Button>
                 </li>
@@ -207,7 +262,18 @@ export default function Onboarding() {
                       </span>
                     ) : null}
                   </div>
-                  <Button variant="secondary" size="sm">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void runMutation(async () => {
+                        await endpoints.orgs.joinRequests.create(org.id, {
+                          message: null,
+                        });
+                      })
+                    }
+                  >
                     Request access
                   </Button>
                 </li>

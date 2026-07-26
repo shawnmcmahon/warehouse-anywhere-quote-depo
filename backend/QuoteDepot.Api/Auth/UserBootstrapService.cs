@@ -88,7 +88,8 @@ public class UserBootstrapService : IUserBootstrapService
                 i.OrganizationId,
                 i.Organization!.Name,
                 i.Role.ToString(),
-                i.Email))
+                i.Email,
+                i.Token))
             .ToListAsync(cancellationToken);
 
         var joinRequests = await _db.JoinRequests

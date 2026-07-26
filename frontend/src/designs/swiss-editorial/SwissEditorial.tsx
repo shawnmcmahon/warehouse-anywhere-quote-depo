@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { TenderSheet } from "./TenderSheet";
 import { coverage, sampleRequest, testimonial, workflow } from "../content";
 
