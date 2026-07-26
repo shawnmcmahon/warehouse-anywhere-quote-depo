@@ -1,0 +1,86 @@
+/**
+ * /2 — Industrial Blueprint
+ *
+ * The drafting table rather than the blueprint print: vellum stock, fine
+ * construction grid, cyan setting-out lines, and one reversed cyanotype field
+ * where the tabulation lives. Hazard yellow is reserved for the single thing
+ * that needs a decision.
+ */
+
+@theme {
+  --color-bp-vellum: #e6e4dd;
+  --color-bp-stock: #dbd8cf;
+  --color-bp-ink: #161e24;
+  --color-bp-graphite: #5a6570;
+  --color-bp-line: #2f6ea8;
+  --color-bp-hazard: #ffc400;
+  --color-bp-deep: #0e1721;
+  --color-bp-flag: #c4392c;
+}
+
+@layer components {
+  .bp-display {
+    font-family: var(--font-saira);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    line-height: 0.92;
+  }
+
+  .bp-anno {
+    font-family: var(--font-plex-mono);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bp-data {
+    font-family: var(--font-plex-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bp-body {
+    font-family: var(--font-plex);
+    line-height: 1.6;
+  }
+
+  /* Engineering paper: 12px setting-out grid over a 96px construction grid. */
+  .bp-grid {
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--color-bp-line) 10%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--color-bp-line) 10%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--color-bp-line) 20%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--color-bp-line) 20%, transparent) 1px,
+        transparent 1px
+      );
+    background-size:
+      12px 12px,
+      12px 12px,
+      96px 96px,
+      96px 96px;
+    background-position: -1px -1px;
+  }
+
+  .bp-hazard-tape {
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--color-bp-hazard) 0 10px,
+      var(--color-bp-ink) 10px 20px
+    );
+  }
+}

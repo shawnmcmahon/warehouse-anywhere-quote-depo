@@ -1,0 +1,59 @@
+/**
+ * /1 — Premium Swiss Editorial
+ *
+ * Paper is a cool grey-green stock, not a warm cream: this is an engineering
+ * card, not a literary magazine. Ultramarine carries every decision point.
+ * Display type is Archivo run wide on its width axis; body copy is Newsreader
+ * at editorial size so the long-form beats read like a printed spread.
+ */
+
+@theme {
+  --color-swiss-paper: #f1f2ef;
+  --color-swiss-stock: #e5e7e2;
+  --color-swiss-ink: #14171a;
+  --color-swiss-graphite: #5b6167;
+  --color-swiss-rule: #d1d5cd;
+  --color-swiss-signal: #1b3bff;
+  --color-swiss-award: #0b6b4f;
+}
+
+@layer components {
+  .swiss-display {
+    font-family: var(--font-archivo);
+    font-variation-settings: "wdth" 115;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 0.9;
+  }
+
+  .swiss-figure {
+    font-family: var(--font-archivo);
+    font-variation-settings: "wdth" 108;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+
+  .swiss-label {
+    font-family: var(--font-archivo);
+    font-variation-settings: "wdth" 86;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+  }
+
+  .swiss-read {
+    font-family: var(--font-newsreader);
+    font-variation-settings: "opsz" 20;
+    font-weight: 380;
+    line-height: 1.55;
+  }
+
+  /* Editorial leader dots: the rule runs to the figure, never through it. */
+  .swiss-leader {
+    flex: 1 1 auto;
+    align-self: center;
+    border-bottom: 1px dotted var(--color-swiss-rule);
+    min-width: 1.5rem;
+  }
+}
