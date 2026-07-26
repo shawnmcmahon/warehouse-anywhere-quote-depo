@@ -3,23 +3,31 @@ services:
     build:
       context: ..
       dockerfile: backend/QuoteDepot.Api/Dockerfile
-    volumes:
-      - quotedepot-data:/data
+    env_file:
+      - .env
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       Data__SqlitePath: /data/quotedepot.db
       Data__UploadsPath: /data/uploads
+      Cognito__Region: ${Cognito__Region:-}
+      Cognito__UserPoolId: ${Cognito__UserPoolId:-}
+      Cognito__ClientId: ${Cognito__ClientId:-}
+      Cognito__UseDevAuth: ${Cognito__UseDevAuth:-false}
+    volumes:
+      - quotedepot-data:/data
     expose:
       - "8080"
+    restart: unless-stopped
 
   web:
     build:
       context: ..
       dockerfile: frontend/Dockerfile
     ports:
-      - "8080:80"
+      - "${HOST_HTTP_PORT:-8080}:80"
     depends_on:
       - api
+    restart: unless-stopped
 
 volumes:
   quotedepot-data:
