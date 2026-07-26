@@ -35,10 +35,21 @@ cd frontend && npm run dev
 ## Docker (local)
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build
+cp .env.example deploy/.env
+# For local Compose you may set Cognito__UseDevAuth=true in deploy/.env
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up --build
 ```
 
 Serves SPA + API proxy on `http://localhost:8080`.
+
+## Production (EC2)
+
+See [deploy/README.md](../deploy/README.md) and [deploy/COST.md](../deploy/COST.md):
+
+1. Create Cognito User Pool (manual) and fill `deploy/.env`
+2. Launch `t4g.micro` + 20 GB gp3 + Elastic IP
+3. Run [deploy/ec2-userdata.sh](../deploy/ec2-userdata.sh) or Compose by hand
+4. Add TLS via Cloudflare or host Let’s Encrypt ([nginx-tls.host.example.conf](../deploy/nginx-tls.host.example.conf))
 
 ## Execution order
 
