@@ -1,6 +1,50 @@
 @import "tailwindcss";
 
+@import "./designs/swiss-editorial/theme.css";
+@import "./designs/industrial-blueprint/theme.css";
+@import "./designs/neomorphic-canvas/theme.css";
+
+@theme {
+  --font-archivo:
+    "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-newsreader:
+    "Newsreader", "Iowan Old Style", Georgia, serif;
+  --font-saira:
+    "Saira Condensed", "Archivo Narrow", "Arial Narrow", sans-serif;
+  --font-plex:
+    "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-plex-mono:
+    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-manrope:
+    "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-dm-mono:
+    "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-plex);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Figures line up in every rate table across all three directions. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

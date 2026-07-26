@@ -1,44 +1,18 @@
-import { useEffect, useState } from 'react'
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import DesignIndex from "./designs/DesignIndex";
+import SwissEditorial from "./designs/swiss-editorial/SwissEditorial";
+import IndustrialBlueprint from "./designs/industrial-blueprint/IndustrialBlueprint";
+import NeomorphicCanvas from "./designs/neomorphic-canvas/NeomorphicCanvas";
 
-type HealthResponse = {
-  status: string
-  service: string
-  timestamp: string
-}
-
-/** Minimal shell — design explorations land after all backend work. */
-function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`Health check failed (${res.status})`)
-        }
-        return (await res.json()) as HealthResponse
-      })
-      .then(setHealth)
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Health check failed')
-      })
-  }, [])
-
+export default function App() {
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-2xl font-semibold">Quote Depot</h1>
-      <p className="mt-2 text-sm text-neutral-600">
-        Backend-first scaffold. Design work is deferred until the API is complete.
-      </p>
-      {error && <p className="mt-4 text-red-700">API: {error}</p>}
-      {health && (
-        <p className="mt-4 text-sm">
-          API health: {health.status} ({health.service})
-        </p>
-      )}
-    </main>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<DesignIndex />} />
+        <Route path="/1" element={<SwissEditorial />} />
+        <Route path="/2" element={<IndustrialBlueprint />} />
+        <Route path="/3" element={<NeomorphicCanvas />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
-
-export default App
