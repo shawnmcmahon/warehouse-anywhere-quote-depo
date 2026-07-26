@@ -130,6 +130,77 @@ public class OrganizationApiTests : IClassFixture<QuoteDepotWebApplicationFactor
     }
 
     [Fact]
+    public async Task Owner_can_change_member_role_admin_cannot()
+    {
+        var owner = Authed("role-owner", "role-owner@example.com");
+        var org = await (await owner.PostAsJsonAsync("/api/orgs", new CreateOrgRequest("Role Org", null)))
+            .Content.ReadFromJsonAsync<OrgResponse>();
+        Assert.NotNull(org);
+
+        var adminInvite = await (await owner.PostAsJsonAsync(
+                $"/api/orgs/{org.Id}/invites",
+                new InviteRequest("role-admin@example.com", "Admin")))
+            .Content.ReadFromJsonAsync<InviteResponse>();
+        Assert.NotNull(adminInvite);
+        var admin = Authed("role-admin", "role-admin@example.com");
+        await admin.PostAsJsonAsync("/api/orgs/invites/accept", new AcceptInviteRequest(adminInvite.Token));
+
+        var memberInvite = await (await owner.PostAsJsonAsync(
+                $"/api/orgs/{org.Id}/invites",
+                new InviteRequest("role-member@example.com", "Member")))
+            .Content.ReadFromJsonAsync<InviteResponse>();
+        Assert.NotNull(memberInvite);
+        var member = Authed("role-member", "role-member@example.com");
+        await member.PostAsJsonAsync("/api/orgs/invites/accept", new AcceptInviteRequest(memberInvite.Token));
+
+        var members = await owner.GetFromJsonAsync<List<MemberResponse>>($"/api/orgs/{org.Id}/members");
+        Assert.NotNull(members);
+        var memberMembership = members.Single(m => m.Email == "role-member@example.com");
+
+        var adminChange = await admin.PatchAsJsonAsync(
+            $"/api/orgs/{org.Id}/members/{memberMembership.MembershipId}/role",
+            new ChangeRoleRequest("Admin"));
+        Assert.Equal(HttpStatusCode.BadRequest, adminChange.StatusCode);
+
+        var ownerChange = await owner.PatchAsJsonAsync(
+            $"/api/orgs/{org.Id}/members/{memberMembership.MembershipId}/role",
+            new ChangeRoleRequest("Admin"));
+        Assert.Equal(HttpStatusCode.NoContent, ownerChange.StatusCode);
+
+        members = await owner.GetFromJsonAsync<List<MemberResponse>>($"/api/orgs/{org.Id}/members");
+        Assert.NotNull(members);
+        Assert.Equal("Admin", members.Single(m => m.Email == "role-member@example.com").Role);
+    }
+
+    [Fact]
+    public async Task Admin_cannot_invite_as_admin()
+    {
+        var owner = Authed("invite-admin-owner", "invite-admin-owner@example.com");
+        var org = await (await owner.PostAsJsonAsync("/api/orgs", new CreateOrgRequest("Invite Admin Org", null)))
+            .Content.ReadFromJsonAsync<OrgResponse>();
+        Assert.NotNull(org);
+
+        var invite = await (await owner.PostAsJsonAsync(
+                $"/api/orgs/{org.Id}/invites",
+                new InviteRequest("invite-admin@example.com", "Admin")))
+            .Content.ReadFromJsonAsync<InviteResponse>();
+        Assert.NotNull(invite);
+
+        var admin = Authed("invite-admin", "invite-admin@example.com");
+        await admin.PostAsJsonAsync("/api/orgs/invites/accept", new AcceptInviteRequest(invite.Token));
+
+        var asAdmin = await admin.PostAsJsonAsync(
+            $"/api/orgs/{org.Id}/invites",
+            new InviteRequest("peer@example.com", "Admin"));
+        Assert.Equal(HttpStatusCode.BadRequest, asAdmin.StatusCode);
+
+        var asMember = await admin.PostAsJsonAsync(
+            $"/api/orgs/{org.Id}/invites",
+            new InviteRequest("peer@example.com", "Member"));
+        Assert.Equal(HttpStatusCode.OK, asMember.StatusCode);
+    }
+
+    [Fact]
     public async Task Approving_join_does_not_demote_existing_admin()
     {
         var owner = Authed("demote-owner", "demote-owner@example.com");

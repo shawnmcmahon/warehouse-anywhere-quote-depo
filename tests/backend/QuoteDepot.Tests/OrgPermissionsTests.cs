@@ -30,6 +30,15 @@ public class OrgPermissionsTests
     }
 
     [Theory]
+    [InlineData(OrgRole.Owner)]
+    [InlineData(OrgRole.Admin)]
+    [InlineData(OrgRole.Member)]
+    public void Manage_requests_allowed_for_all_roles(OrgRole role)
+    {
+        Assert.True(OrgPermissions.CanManageRequests(role));
+    }
+
+    [Theory]
     [InlineData(OrgRole.Owner, OrgRole.Admin, true)]
     [InlineData(OrgRole.Owner, OrgRole.Member, true)]
     [InlineData(OrgRole.Owner, OrgRole.Owner, false)]
