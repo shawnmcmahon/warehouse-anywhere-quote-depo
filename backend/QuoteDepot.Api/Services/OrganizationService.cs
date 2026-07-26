@@ -28,11 +28,13 @@ public class OrganizationService : IOrganizationService
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserAccessor _users;
+    private readonly IAuditService _audit;
 
-    public OrganizationService(AppDbContext db, ICurrentUserAccessor users)
+    public OrganizationService(AppDbContext db, ICurrentUserAccessor users, IAuditService audit)
     {
         _db = db;
         _users = users;
+        _audit = audit;
     }
 
     public async Task<Organization> CreateAsync(
@@ -63,6 +65,13 @@ public class OrganizationService : IOrganizationService
 
         _db.Organizations.Add(org);
         _db.OrganizationMemberships.Add(membership);
+        _audit.Record(
+            org.Id,
+            owner.Id,
+            AuditActions.OrganizationCreated,
+            nameof(Organization),
+            org.Id,
+            new { org.Name });
         await _db.SaveChangesAsync(ct);
         return org;
     }
@@ -105,6 +114,13 @@ public class OrganizationService : IOrganizationService
         org.Name = name.Trim();
         org.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         org.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.OrganizationUpdated,
+            nameof(Organization),
+            orgId,
+            new { org.Name });
         await _db.SaveChangesAsync(ct);
         return org;
     }
@@ -185,6 +201,13 @@ public class OrganizationService : IOrganizationService
             ExpiresAt = now.AddDays(14),
         };
         _db.Invites.Add(invite);
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.MembershipInvited,
+            nameof(Invite),
+            invite.Id,
+            new { invite.Email, Role = invite.Role.ToString() });
         await _db.SaveChangesAsync(ct);
         return invite;
     }
@@ -245,6 +268,13 @@ public class OrganizationService : IOrganizationService
 
         invite.Status = InviteStatus.Accepted;
         invite.AcceptedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            invite.OrganizationId,
+            user.Id,
+            AuditActions.MembershipInviteAccepted,
+            nameof(OrganizationMembership),
+            existing.Id,
+            new { invite.Email, Role = invite.Role.ToString() });
         await _db.SaveChangesAsync(ct);
         return existing;
     }
@@ -273,8 +303,16 @@ public class OrganizationService : IOrganizationService
             throw new DomainException("Cannot change the Owner's role.");
         }
 
+        var previousRole = target.Role;
         target.Role = newRole;
         target.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.MembershipRoleChanged,
+            nameof(OrganizationMembership),
+            target.Id,
+            new { From = previousRole.ToString(), To = newRole.ToString(), target.UserId });
         await _db.SaveChangesAsync(ct);
     }
 
@@ -307,6 +345,13 @@ public class OrganizationService : IOrganizationService
 
         target.Status = MembershipStatus.Revoked;
         target.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.MembershipRevoked,
+            nameof(OrganizationMembership),
+            target.Id,
+            new { target.UserId, Role = target.Role.ToString() });
         await _db.SaveChangesAsync(ct);
     }
 
@@ -346,6 +391,13 @@ public class OrganizationService : IOrganizationService
             Message = string.IsNullOrWhiteSpace(message) ? null : message.Trim(),
         };
         _db.JoinRequests.Add(joinRequest);
+        _audit.Record(
+            orgId,
+            user.Id,
+            AuditActions.JoinRequestCreated,
+            nameof(JoinRequest),
+            joinRequest.Id,
+            null);
         await _db.SaveChangesAsync(ct);
         return joinRequest;
     }
@@ -414,6 +466,13 @@ public class OrganizationService : IOrganizationService
         }
         // Already active (e.g. accepted an Admin invite first): preserve current role.
 
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.JoinRequestApproved,
+            nameof(JoinRequest),
+            joinRequest.Id,
+            new { joinRequest.UserId });
         await _db.SaveChangesAsync(ct);
     }
 
@@ -442,6 +501,13 @@ public class OrganizationService : IOrganizationService
         joinRequest.Status = JoinRequestStatus.Rejected;
         joinRequest.ResolvedAt = DateTimeOffset.UtcNow;
         joinRequest.ResolvedByUserId = actor.Id;
+        _audit.Record(
+            orgId,
+            actor.Id,
+            AuditActions.JoinRequestRejected,
+            nameof(JoinRequest),
+            joinRequest.Id,
+            new { joinRequest.UserId });
         await _db.SaveChangesAsync(ct);
     }
 }

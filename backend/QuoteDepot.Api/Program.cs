@@ -16,8 +16,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddQuoteDepotAuth(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<IUserBootstrapServiceBridge, UserBootstrapServiceBridge>();
 builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IRequestQuoteService, RequestQuoteService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IOrgLogoService, OrgLogoService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

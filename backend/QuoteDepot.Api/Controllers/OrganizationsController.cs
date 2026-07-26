@@ -12,11 +12,19 @@ public class OrganizationsController : ControllerBase
 {
     private readonly IOrganizationService _orgs;
     private readonly ICurrentUserAccessor _users;
+    private readonly IAuditService _audit;
+    private readonly IOrgLogoService _logos;
 
-    public OrganizationsController(IOrganizationService orgs, ICurrentUserAccessor users)
+    public OrganizationsController(
+        IOrganizationService orgs,
+        ICurrentUserAccessor users,
+        IAuditService audit,
+        IOrgLogoService logos)
     {
         _orgs = orgs;
         _users = users;
+        _audit = audit;
+        _logos = logos;
     }
 
     [HttpPost]
@@ -168,6 +176,55 @@ public class OrganizationsController : ControllerBase
         await _orgs.RejectJoinRequestAsync(orgId, user, joinRequestId, cancellationToken);
         return NoContent();
     }
+
+    [HttpGet("{orgId:guid}/audit")]
+    public async Task<ActionResult<IReadOnlyList<AuditEventResponse>>> ListAudit(
+        Guid orgId,
+        [FromQuery] int take = 100,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _users.RequireUserAsync(User, cancellationToken);
+        var events = await _audit.ListForOrgAsync(orgId, user, take, cancellationToken);
+        return Ok(events.Select(AuditEventResponse.From).ToList());
+    }
+
+    [HttpPost("{orgId:guid}/logo")]
+    [RequestSizeLimit(2 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 2 * 1024 * 1024)]
+    public async Task<ActionResult<OrgResponse>> UploadLogo(
+        Guid orgId,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { error = "A logo file is required." });
+        }
+
+        var user = await _users.RequireUserAsync(User, cancellationToken);
+        await using var stream = file.OpenReadStream();
+        var org = await _logos.UploadAsync(
+            orgId,
+            user,
+            stream,
+            file.ContentType,
+            file.FileName,
+            cancellationToken);
+        return Ok(OrgResponse.From(org));
+    }
+
+    [HttpGet("{orgId:guid}/logo")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetLogo(Guid orgId, CancellationToken cancellationToken)
+    {
+        var opened = await _logos.OpenAsync(orgId, cancellationToken);
+        if (opened is null)
+        {
+            return NotFound();
+        }
+
+        return File(opened.Value.Stream, opened.Value.ContentType);
+    }
 }
 
 public record CreateOrgRequest(string Name, string? Description);
@@ -199,4 +256,26 @@ public record JoinRequestResponse(Guid JoinRequestId, Guid UserId, string? Email
 {
     public static JoinRequestResponse From(Domain.Entities.JoinRequest j) =>
         new(j.Id, j.UserId, j.User?.Email, j.Status.ToString(), j.Message);
+}
+
+public record AuditEventResponse(
+    Guid Id,
+    Guid? ActorUserId,
+    string? ActorEmail,
+    string Action,
+    string EntityType,
+    Guid? EntityId,
+    DateTimeOffset OccurredAt,
+    string? MetadataJson)
+{
+    public static AuditEventResponse From(Domain.Entities.AuditEvent e) =>
+        new(
+            e.Id,
+            e.ActorUserId,
+            e.Actor?.Email,
+            e.Action,
+            e.EntityType,
+            e.EntityId,
+            e.OccurredAt,
+            e.MetadataJson);
 }

@@ -16,6 +16,9 @@ public static class OrgPermissions
 
     public static bool CanUpdateOrgSettings(OrgRole role) => role == OrgRole.Owner;
 
+    public static bool CanViewAudit(OrgRole role) =>
+        role is OrgRole.Owner or OrgRole.Admin;
+
     public static bool CanManageRequests(OrgRole role) =>
         role is OrgRole.Owner or OrgRole.Admin or OrgRole.Member;
 

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using QuoteDepot.Infrastructure.Data;
+using QuoteDepot.Infrastructure.Storage;
 
 namespace QuoteDepot.Infrastructure;
 
@@ -19,6 +20,9 @@ public static class DependencyInjection
         {
             Directory.CreateDirectory(directory);
         }
+
+        var uploadsPath = configuration["Data:UploadsPath"] ?? "data/uploads";
+        services.AddSingleton<IFileStorage>(_ => new LocalFileStorage(uploadsPath));
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlite($"Data Source={sqlitePath}"));
