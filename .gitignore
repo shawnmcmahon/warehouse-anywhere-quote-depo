@@ -18,6 +18,8 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+*.pem
+deploy/production.env
 
 # OS / IDE
 .DS_Store
