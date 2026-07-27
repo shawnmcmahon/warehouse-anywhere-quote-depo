@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import type {
   InputHTMLAttributes,
   ReactNode,
@@ -129,6 +129,72 @@ export function TextField({
         )}
         {...rest}
       />
+    </FieldFrame>
+  );
+}
+
+type PasswordFieldProps = SharedProps &
+  Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "type"> & {
+    visible?: boolean;
+    onVisibleChange?: (visible: boolean) => void;
+  };
+
+export function PasswordField({
+  label,
+  hint,
+  error,
+  optional,
+  className,
+  autoComplete,
+  visible: visibleProp,
+  onVisibleChange,
+  ...rest
+}: PasswordFieldProps) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const [visibleInternal, setVisibleInternal] = useState(false);
+  const visible = visibleProp ?? visibleInternal;
+
+  function toggleVisible() {
+    const next = !visible;
+    if (onVisibleChange) {
+      onVisibleChange(next);
+    } else {
+      setVisibleInternal(next);
+    }
+  }
+
+  return (
+    <FieldFrame
+      id={id}
+      label={label}
+      hint={hint}
+      error={error}
+      optional={optional}
+      hintId={hintId}
+      errorId={errorId}
+    >
+      <div className="relative">
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy(hint, error, hintId, errorId)}
+          autoComplete={autoComplete}
+          className={cx("bp-input px-3 py-2 pr-16 text-sm", className)}
+          {...rest}
+        />
+        <button
+          type="button"
+          onClick={toggleVisible}
+          className="bp-anno bp-focus absolute right-0 top-0 flex h-full items-center px-3 text-[9px] text-bp-graphite hover:text-bp-ink"
+          aria-label={visible ? "Hide password" : "Show password"}
+          aria-pressed={visible}
+        >
+          {visible ? "Hide" : "Show"}
+        </button>
+      </div>
     </FieldFrame>
   );
 }

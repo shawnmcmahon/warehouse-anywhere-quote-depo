@@ -11,7 +11,7 @@ import type { BootstrapResponse } from "../api-types";
 import { endpoints } from "../api/endpoints";
 import { ApiError } from "../api/client";
 import { authConfig } from "./config";
-import { signInWithPassword } from "./cognito";
+import { signInWithPassword, signUpWithPassword } from "./cognito";
 import { createDevJwt } from "./dev-jwt";
 import {
   clearAccessToken,
@@ -25,6 +25,10 @@ type AuthContextValue = {
   status: AuthStatus;
   bootstrap: BootstrapResponse | null;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ needsConfirmation: boolean }>;
   signOut: () => void;
   refreshBootstrap: () => Promise<void>;
   useDevAuth: boolean;
@@ -84,6 +88,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshBootstrap],
   );
 
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string) => {
+      if (authConfig.useDevAuth) {
+        const token = await createDevJwt(email);
+        setAccessToken(token);
+        await refreshBootstrap();
+        return { needsConfirmation: false };
+      }
+
+      const { needsConfirmation } = await signUpWithPassword(email, password);
+      if (!needsConfirmation) {
+        const token = await signInWithPassword(email, password);
+        setAccessToken(token);
+        await refreshBootstrap();
+      }
+
+      return { needsConfirmation };
+    },
+    [refreshBootstrap],
+  );
+
   const signOut = useCallback(() => {
     clearAccessToken();
     setBootstrap(null);
@@ -95,11 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       bootstrap,
       signInWithEmail,
+      signUpWithEmail,
       signOut,
       refreshBootstrap,
       useDevAuth: authConfig.useDevAuth,
     }),
-    [status, bootstrap, signInWithEmail, signOut, refreshBootstrap],
+    [status, bootstrap, signInWithEmail, signUpWithEmail, signOut, refreshBootstrap],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
