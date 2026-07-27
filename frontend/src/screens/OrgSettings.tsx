@@ -243,14 +243,15 @@ export default function OrgSettings() {
               className="mb-5 flex flex-col gap-4 border border-bp-ink bg-bp-vellum p-4"
               onSubmit={(event) => {
                 event.preventDefault();
-                const data = new FormData(event.currentTarget);
+                const form = event.currentTarget;
+                const data = new FormData(form);
                 void runMutation(async () => {
                   await endpoints.orgs.invites.create(orgId, {
                     email: String(data.get("email") ?? "").trim(),
                     role: String(data.get("role") ?? "Member") as OrgRole,
                   });
+                  form.reset();
                   setInviting(false);
-                  event.currentTarget.reset();
                 });
               }}
             >
