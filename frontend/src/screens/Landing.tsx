@@ -27,12 +27,20 @@ export default function Landing() {
             <span className="bp-display text-base">Warehouse Anywhere</span>
           </div>
 
-          <Link
-            to="/signin"
-            className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-line"
-          >
-            Sign in
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/signin?mode=signup"
+              className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-line"
+            >
+              Sign up
+            </Link>
+            <Link
+              to="/signin"
+              className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-line"
+            >
+              Sign in
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -51,8 +59,11 @@ export default function Landing() {
               bids in one place.
             </p>
 
-            <div className="mt-8">
-              <ButtonLink to="/signin" variant="primary" size="lg">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <ButtonLink to="/signin?mode=signup" variant="primary" size="lg">
+                Sign up
+              </ButtonLink>
+              <ButtonLink to="/signin" variant="secondary" size="lg">
                 Sign in
               </ButtonLink>
             </div>
@@ -68,6 +79,14 @@ export default function Landing() {
           </h2>
 
           <ul className="mt-3 divide-y divide-bp-line/30 border border-bp-ink bg-bp-sheet">
+            <li>
+              <Link
+                to="/signin?mode=signup"
+                className="bp-body bp-focus block px-5 py-3.5 text-sm no-underline transition-colors hover:bg-bp-line/8"
+              >
+                Sign up for a buyer account
+              </Link>
+            </li>
             <li>
               <Link
                 to="/signin"
