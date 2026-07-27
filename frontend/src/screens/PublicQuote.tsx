@@ -170,7 +170,7 @@ export default function PublicQuote() {
               body="The buyer has stopped accepting submissions on this sheet. If you were asked to bid, contact them directly."
             />
           ) : (
-            <Panel title="Submit a bid" annotation="Takes about a minute">
+            <Panel title="Submit a bid">
               {submitError ? (
                 <ErrorState
                   title="Could not submit bid"
@@ -292,7 +292,6 @@ export default function PublicQuote() {
                   optional
                   rows={4}
                   placeholder="Capacity available, lead time, certificates on file, anything the buyer should weigh."
-                  hint="This is where a good bid separates itself from a cheap one."
                 />
 
                 <div className="flex flex-wrap items-center gap-4">
