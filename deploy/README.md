@@ -18,6 +18,12 @@ In the AWS Console (same region as the EC2):
 3. Note **Region**, **User Pool ID**, **App client ID**
 4. Hosted UI domain (needed when the frontend auth screens land): create a Cognito domain and set callback URLs to your site origin(s)
 
+### Email verification (sign-up)
+
+By default Cognito sends a **verification code** (not a link). The Quote Depot sign-in page includes a **Verify email** step at `/signin?mode=verify` where users enter that code after sign-up.
+
+Optional: in the user pool **Message templates → Verification message**, you can switch type to **Link** and include `{##Verify your email##}` in the template. That link opens Cognito's confirmation page (not your app). For a one-click link that lands back on Quote Depot, you need a Custom Message Lambda plus a small backend endpoint — code entry in the app is the simpler path for embedded auth.
+
 Put values into `deploy/.env` (never commit that file):
 
 ```bash

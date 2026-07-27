@@ -5,19 +5,30 @@ import { PasswordField, TextField } from "../ui/Field";
 import { ErrorState } from "../ui/States";
 import { useAuth } from "../lib/auth/AuthProvider";
 
-type AuthMode = "signin" | "signup";
+type AuthMode = "signin" | "signup" | "verify";
 
 function parseMode(value: string | null): AuthMode {
-  return value === "signup" ? "signup" : "signin";
+  if (value === "signup") return "signup";
+  if (value === "verify") return "verify";
+  return "signin";
 }
 
 export default function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { signInWithEmail, signUpWithEmail, useDevAuth } = useAuth();
+  const {
+    signInWithEmail,
+    signUpWithEmail,
+    confirmSignUpWithEmail,
+    resendSignUpCode,
+    useDevAuth,
+  } = useAuth();
   const mode = parseMode(searchParams.get("mode"));
+  const verifyEmail = searchParams.get("email")?.trim().toLowerCase() ?? "";
+  const signInEmail = searchParams.get("email")?.trim().toLowerCase() ?? "";
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -25,13 +36,27 @@ export default function SignIn() {
   const redirectTo =
     (location.state as { from?: string } | null)?.from ?? "/app";
 
-  function switchMode(nextMode: AuthMode) {
+  function switchMode(nextMode: AuthMode, email?: string) {
     setError(null);
     setSuccessMessage(null);
     setPasswordVisible(false);
-    setSearchParams(nextMode === "signup" ? { mode: "signup" } : {}, {
-      replace: true,
-    });
+
+    if (nextMode === "signup") {
+      setSearchParams({ mode: "signup" }, { replace: true });
+      return;
+    }
+
+    if (nextMode === "verify") {
+      setSearchParams(
+        email
+          ? { mode: "verify", email }
+          : { mode: "verify" },
+        { replace: true },
+      );
+      return;
+    }
+
+    setSearchParams(email ? { email } : {}, { replace: true });
   }
 
   async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
@@ -52,7 +77,17 @@ export default function SignIn() {
       await signInWithEmail(email, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed.");
+      const message =
+        err instanceof Error ? err.message : "Sign-in failed.";
+      if (message === "Verify your email before signing in.") {
+        switchMode("verify", email);
+        setError(null);
+        setSuccessMessage(
+          "Enter the verification code from your email to finish setting up your account.",
+        );
+      } else {
+        setError(message);
+      }
       setSubmitting(false);
     }
   }
@@ -89,10 +124,9 @@ export default function SignIn() {
     try {
       const { needsConfirmation } = await signUpWithEmail(email, password);
       if (needsConfirmation) {
-        setError(null);
-        setSearchParams({}, { replace: true });
+        switchMode("verify", email);
         setSuccessMessage(
-          "Account created. Check your email for a verification link, then sign in.",
+          "We sent a verification code to your email. Enter it below to activate your account.",
         );
         setSubmitting(false);
         return;
@@ -102,6 +136,61 @@ export default function SignIn() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-up failed.");
       setSubmitting(false);
+    }
+  }
+
+  async function handleVerify(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    setSubmitting(true);
+    const form = event.currentTarget;
+    const email = String(new FormData(form).get("email") ?? "").trim();
+    const code = String(new FormData(form).get("code") ?? "").trim();
+
+    if (!email || !code) {
+      setError("Enter your email and the verification code from your message.");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await confirmSignUpWithEmail(email, code);
+      switchMode("signin", email);
+      setSuccessMessage(
+        "Email verified. Sign in with the password you chose during sign up.",
+      );
+      setSubmitting(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verification failed.");
+      setSubmitting(false);
+    }
+  }
+
+  async function handleResendCode(
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResending(true);
+    const form = event.currentTarget.form;
+    const email = form
+      ? String(new FormData(form).get("email") ?? "").trim()
+      : verifyEmail;
+
+    if (!email) {
+      setError("Enter your email to resend the verification code.");
+      setResending(false);
+      return;
+    }
+
+    try {
+      await resendSignUpCode(email);
+      setSuccessMessage("A new verification code has been sent to your email.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not resend code.");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -133,45 +222,123 @@ export default function SignIn() {
             </p>
           </div>
 
-          <div
-            className="grid grid-cols-2 border-b border-bp-ink"
-            role="tablist"
-            aria-label="Authentication mode"
-          >
-            <button
-              type="button"
-              role="tab"
-              id="signin-tab"
-              aria-selected={mode === "signin"}
-              aria-controls="signin-panel"
-              className={
-                mode === "signin"
-                  ? "bp-anno bp-focus border-b-2 border-bp-hazard bg-bp-sheet px-4 py-3 text-[10px] text-bp-ink"
-                  : "bp-anno bp-focus border-b border-bp-line/30 bg-bp-stock px-4 py-3 text-[10px] text-bp-graphite hover:text-bp-ink"
-              }
-              onClick={() => switchMode("signin")}
+          {mode === "verify" ? (
+            <div className="border-b border-bp-ink bg-bp-stock px-4 py-3">
+              <button
+                type="button"
+                onClick={() => switchMode("signin")}
+                className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-ink"
+              >
+                ← Back to sign in
+              </button>
+            </div>
+          ) : (
+            <div
+              className="grid grid-cols-2 border-b border-bp-ink"
+              role="tablist"
+              aria-label="Authentication mode"
             >
-              Sign in
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="signup-tab"
-              aria-selected={mode === "signup"}
-              aria-controls="signup-panel"
-              className={
-                mode === "signup"
-                  ? "bp-anno bp-focus border-b-2 border-bp-hazard bg-bp-sheet px-4 py-3 text-[10px] text-bp-ink"
-                  : "bp-anno bp-focus border-b border-bp-line/30 bg-bp-stock px-4 py-3 text-[10px] text-bp-graphite hover:text-bp-ink"
-              }
-              onClick={() => switchMode("signup")}
-            >
-              Sign up
-            </button>
-          </div>
+              <button
+                type="button"
+                role="tab"
+                id="signin-tab"
+                aria-selected={mode === "signin"}
+                aria-controls="signin-panel"
+                className={
+                  mode === "signin"
+                    ? "bp-anno bp-focus border-b-2 border-bp-hazard bg-bp-sheet px-4 py-3 text-[10px] text-bp-ink"
+                    : "bp-anno bp-focus border-b border-bp-line/30 bg-bp-stock px-4 py-3 text-[10px] text-bp-graphite hover:text-bp-ink"
+                }
+                onClick={() => switchMode("signin")}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="signup-tab"
+                aria-selected={mode === "signup"}
+                aria-controls="signup-panel"
+                className={
+                  mode === "signup"
+                    ? "bp-anno bp-focus border-b-2 border-bp-hazard bg-bp-sheet px-4 py-3 text-[10px] text-bp-ink"
+                    : "bp-anno bp-focus border-b border-bp-line/30 bg-bp-stock px-4 py-3 text-[10px] text-bp-graphite hover:text-bp-ink"
+                }
+                onClick={() => switchMode("signup")}
+              >
+                Sign up
+              </button>
+            </div>
+          )}
 
           <div className="p-6 sm:p-8">
-            {mode === "signin" ? (
+            {mode === "verify" ? (
+              <div id="verify-panel">
+                <h1 className="bp-display m-0 text-3xl">Verify email</h1>
+                <p className="bp-body m-0 mt-3 text-sm text-bp-graphite">
+                  Enter the verification code from the email Cognito sent you.
+                  The message usually comes from an address like
+                  no-reply@verificationemail.com.
+                </p>
+
+                {successMessage ? (
+                  <p
+                    className="bp-body m-0 mt-5 border border-bp-approve bg-bp-stock px-4 py-3 text-sm text-bp-approve"
+                    role="status"
+                  >
+                    {successMessage}
+                  </p>
+                ) : null}
+
+                {error ? (
+                  <div className="mt-5">
+                    <ErrorState title="Verification failed" body={error} />
+                  </div>
+                ) : null}
+
+                <form
+                  className="mt-7 flex flex-col gap-5"
+                  onSubmit={handleVerify}
+                >
+                  <TextField
+                    label="Work email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    defaultValue={verifyEmail}
+                    placeholder="you@company.com"
+                  />
+                  <TextField
+                    label="Verification code"
+                    name="code"
+                    required
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    placeholder="6-digit code"
+                    hint="Paste the code from your verification email."
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    disabled={submitting}
+                  >
+                    {submitting ? "Verifying…" : "Verify email"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="quiet"
+                    size="sm"
+                    disabled={resending}
+                    onClick={handleResendCode}
+                  >
+                    {resending ? "Sending…" : "Resend verification code"}
+                  </Button>
+                </form>
+              </div>
+            ) : mode === "signin" ? (
               <div
                 role="tabpanel"
                 id="signin-panel"
@@ -208,6 +375,7 @@ export default function SignIn() {
                     type="email"
                     required
                     autoComplete="email"
+                    defaultValue={signInEmail}
                     placeholder="you@company.com"
                   />
                   <PasswordField
@@ -229,6 +397,17 @@ export default function SignIn() {
                     {submitting ? "Signing in…" : "Sign in"}
                   </Button>
                 </form>
+
+                <p className="bp-body m-0 mt-5 text-xs text-bp-graphite">
+                  Waiting on a verification code?{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode("verify", signInEmail)}
+                    className="bp-focus text-bp-line underline decoration-dotted underline-offset-4"
+                  >
+                    Verify your email
+                  </button>
+                </p>
               </div>
             ) : (
               <div

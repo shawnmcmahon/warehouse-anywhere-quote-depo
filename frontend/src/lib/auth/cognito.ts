@@ -41,6 +41,32 @@ function mapCognitoSignUpError(error: unknown): Error {
   return new Error("Sign-up failed. Please try again.");
 }
 
+function mapCognitoConfirmError(error: unknown): Error {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = String((error as { code: string }).code);
+    switch (code) {
+      case "CodeMismatchException":
+        return new Error("That verification code is incorrect. Try again.");
+      case "ExpiredCodeException":
+        return new Error("That verification code expired. Request a new one.");
+      case "LimitExceededException":
+        return new Error("Too many attempts. Wait a moment and try again.");
+      case "UserNotFoundException":
+        return new Error("No pending sign-up found for that email.");
+      case "InvalidParameterException":
+        return new Error("Enter the email and verification code from your message.");
+      default:
+        break;
+    }
+  }
+
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error("Verification failed. Please try again.");
+}
+
 function mapCognitoError(error: unknown): Error {
   if (error && typeof error === "object" && "code" in error) {
     const code = String((error as { code: string }).code);
@@ -131,5 +157,48 @@ export async function signUpWithPassword(
         resolve({ needsConfirmation: !result?.userConfirmed });
       },
     );
+  });
+}
+
+/** Confirm a new user's email with the verification code from Cognito. */
+export async function confirmSignUp(
+  email: string,
+  code: string,
+): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const pool = getUserPool();
+  const user = new CognitoUser({
+    Username: normalizedEmail,
+    Pool: pool,
+  });
+
+  return new Promise((resolve, reject) => {
+    user.confirmRegistration(code.trim(), true, (err) => {
+      if (err) {
+        reject(mapCognitoConfirmError(err));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/** Resend the sign-up verification code email. */
+export async function resendConfirmationCode(email: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const pool = getUserPool();
+  const user = new CognitoUser({
+    Username: normalizedEmail,
+    Pool: pool,
+  });
+
+  return new Promise((resolve, reject) => {
+    user.resendConfirmationCode((err) => {
+      if (err) {
+        reject(mapCognitoConfirmError(err));
+        return;
+      }
+      resolve();
+    });
   });
 }

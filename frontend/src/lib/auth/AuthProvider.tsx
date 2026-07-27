@@ -11,7 +11,12 @@ import type { BootstrapResponse } from "../api-types";
 import { endpoints } from "../api/endpoints";
 import { ApiError } from "../api/client";
 import { authConfig } from "./config";
-import { signInWithPassword, signUpWithPassword } from "./cognito";
+import {
+  confirmSignUp,
+  resendConfirmationCode,
+  signInWithPassword,
+  signUpWithPassword,
+} from "./cognito";
 import { createDevJwt } from "./dev-jwt";
 import {
   clearAccessToken,
@@ -29,6 +34,8 @@ type AuthContextValue = {
     email: string,
     password: string,
   ) => Promise<{ needsConfirmation: boolean }>;
+  confirmSignUpWithEmail: (email: string, code: string) => Promise<void>;
+  resendSignUpCode: (email: string) => Promise<void>;
   signOut: () => void;
   refreshBootstrap: () => Promise<void>;
   useDevAuth: boolean;
@@ -109,6 +116,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refreshBootstrap],
   );
 
+  const confirmSignUpWithEmail = useCallback(async (email: string, code: string) => {
+    if (authConfig.useDevAuth) {
+      return;
+    }
+
+    await confirmSignUp(email, code);
+  }, []);
+
+  const resendSignUpCode = useCallback(async (email: string) => {
+    if (authConfig.useDevAuth) {
+      return;
+    }
+
+    await resendConfirmationCode(email);
+  }, []);
+
   const signOut = useCallback(() => {
     clearAccessToken();
     setBootstrap(null);
@@ -121,11 +144,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       bootstrap,
       signInWithEmail,
       signUpWithEmail,
+      confirmSignUpWithEmail,
+      resendSignUpCode,
       signOut,
       refreshBootstrap,
       useDevAuth: authConfig.useDevAuth,
     }),
-    [status, bootstrap, signInWithEmail, signUpWithEmail, signOut, refreshBootstrap],
+    [status, bootstrap, signInWithEmail, signUpWithEmail, confirmSignUpWithEmail, resendSignUpCode, signOut, refreshBootstrap],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
