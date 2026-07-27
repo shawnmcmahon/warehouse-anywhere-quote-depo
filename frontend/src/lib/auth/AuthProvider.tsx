@@ -11,7 +11,7 @@ import type { BootstrapResponse } from "../api-types";
 import { endpoints } from "../api/endpoints";
 import { ApiError } from "../api/client";
 import { authConfig } from "./config";
-import { beginCognitoSignIn, exchangeAuthorizationCode } from "./cognito";
+import { signInWithPassword } from "./cognito";
 import { createDevJwt } from "./dev-jwt";
 import {
   clearAccessToken,
@@ -24,9 +24,7 @@ type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 type AuthContextValue = {
   status: AuthStatus;
   bootstrap: BootstrapResponse | null;
-  signInWithEmail: (email: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  completeCognitoCallback: (code: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => void;
   refreshBootstrap: () => Promise<void>;
   useDevAuth: boolean;
@@ -71,25 +69,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshBootstrap]);
 
   const signInWithEmail = useCallback(
-    async (email: string) => {
+    async (email: string, password: string) => {
       if (authConfig.useDevAuth) {
         const token = await createDevJwt(email);
         setAccessToken(token);
         await refreshBootstrap();
         return;
       }
-      await beginCognitoSignIn({ loginHint: email });
-    },
-    [refreshBootstrap],
-  );
 
-  const signInWithGoogle = useCallback(async () => {
-    await beginCognitoSignIn({ identityProvider: "Google" });
-  }, []);
-
-  const completeCognitoCallback = useCallback(
-    async (code: string) => {
-      const token = await exchangeAuthorizationCode(code);
+      const token = await signInWithPassword(email, password);
       setAccessToken(token);
       await refreshBootstrap();
     },
@@ -107,21 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       bootstrap,
       signInWithEmail,
-      signInWithGoogle,
-      completeCognitoCallback,
       signOut,
       refreshBootstrap,
       useDevAuth: authConfig.useDevAuth,
     }),
-    [
-      status,
-      bootstrap,
-      signInWithEmail,
-      signInWithGoogle,
-      completeCognitoCallback,
-      signOut,
-      refreshBootstrap,
-    ],
+    [status, bootstrap, signInWithEmail, signOut, refreshBootstrap],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

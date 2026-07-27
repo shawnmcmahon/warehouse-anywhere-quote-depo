@@ -28,8 +28,6 @@ services:
         VITE_COGNITO_REGION: ${Cognito__Region:-}
         VITE_COGNITO_USER_POOL_ID: ${Cognito__UserPoolId:-}
         VITE_COGNITO_CLIENT_ID: ${Cognito__ClientId:-}
-        VITE_COGNITO_DOMAIN: ${Cognito__Domain:-}
-        VITE_COGNITO_REDIRECT_URI: ${Cognito__RedirectUri:-}
     ports:
       - "${HOST_HTTP_PORT:-8080}:80"
     depends_on:
