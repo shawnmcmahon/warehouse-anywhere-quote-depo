@@ -1,63 +1,119 @@
 # Quote Depot
 
-Organizations, RFQ requests, and quotes — ASP.NET Core 8 + React/Vite/Tailwind, Cognito auth, SQLite on a single small EC2.
+**Live app:** [https://waquotedepot.com](https://waquotedepot.com)
 
-## Status
+Part of **Warehouse Anywhere** — a place for warehouse and logistics teams to raise RFQs, collect vendor bids, and compare quotes in one workflow.
 
-Backend-first build. Frontend is a minimal shell until the API is complete; design explorations (`/1`, `/2`, `/3`) are intentionally deferred.
+---
 
-## Repo layout
+## What it does
+
+Quote Depot helps organizations run a simple request-for-quote (RFQ) process:
+
+1. **Sign in** with email/password or Google (via Amazon Cognito).
+2. **Join or create an organization** on first login — create a new org, accept an invite, or request to join an existing one.
+3. **Publish requests** — org members open RFQs and share a public link with vendors.
+4. **Collect quotes** — guests or signed-in users submit bids at `/r/{slug}`.
+5. **Review and decide** — admins move quotes through `Draft → Submitted → Under Review → Accepted | Rejected`. Accepting one quote closes the request and rejects competing active bids.
+6. **Audit and membership** — owners and admins review a lightweight audit trail and manage who belongs to the org.
+
+### Roles
+
+| Role | What they can do |
+| ---- | ---------------- |
+| **Owner** | Full org control (one per org — the creator) |
+| **Admin** | Invite/revoke members, approve join requests, manage requests and quotes, accept quotes |
+| **Member** | Create and manage requests, view quotes; no membership administration |
+
+---
+
+## Built with
+
+| Layer | Technology |
+| ----- | ---------- |
+| **Frontend** | React 19, Vite, TypeScript, Tailwind CSS, React Router |
+| **Backend** | ASP.NET Core 8 Web API |
+| **Data** | Entity Framework Core + SQLite |
+| **Authentication** | Amazon Cognito (email/password + Google) |
+| **Hosting** | AWS EC2, Docker Compose, Nginx |
+| **Edge / TLS** | Cloudflare |
+| **Tests** | xUnit (backend), Playwright (E2E, planned) |
+
+---
+
+## Architecture
+
+Traffic flows from the browser through Cloudflare to a single EC2 instance running two Docker containers: Nginx serves the React SPA and proxies API calls to the ASP.NET backend. The API reads and writes a SQLite database and file uploads on persistent EBS storage. Authentication is handled by Amazon Cognito; the API validates JWTs on each protected request.
+
+```mermaid
+flowchart TB
+    subgraph clients["Clients"]
+        Browser["Web browser"]
+        Vendor["Vendor / guest<br/>(public RFQ link)"]
+    end
+
+    subgraph edge["Edge"]
+        CF["Cloudflare<br/>DNS + TLS"]
+    end
+
+    subgraph aws["AWS"]
+        subgraph ec2["EC2 instance (Docker Compose)"]
+            Nginx["Nginx (web)<br/>React SPA + /api proxy"]
+            API["ASP.NET Core 8 API<br/>QuoteDepot.Api"]
+            SQLite[("SQLite<br/>quotedepot.db")]
+            Uploads[("File storage<br/>org logos / uploads")]
+        end
+
+        Cognito["Amazon Cognito<br/>User pool + Hosted UI"]
+        Google["Google OAuth<br/>(optional IdP)"]
+        EBS["EBS volume<br/>persistent /data"]
+    end
+
+    Browser --> CF
+    Vendor --> CF
+    CF --> Nginx
+    Nginx -->|"/api/*"| API
+    Nginx -->|"static SPA"| Browser
+    API --> SQLite
+    API --> Uploads
+    SQLite --- EBS
+    Uploads --- EBS
+    Browser -->|"sign in / sign up"| Cognito
+    Cognito --> Google
+    Browser -->|"Bearer JWT"| API
+    API -->|"validate JWT"| Cognito
+```
+
+### Backend structure
+
+The API follows a layered layout:
+
+| Project | Responsibility |
+| ------- | -------------- |
+| `QuoteDepot.Api` | HTTP controllers, auth middleware, application services |
+| `QuoteDepot.Domain` | Entities, enums, state machines, domain rules |
+| `QuoteDepot.Infrastructure` | EF Core `DbContext`, SQLite, local file storage |
+
+### Key routes
+
+| Route | Purpose |
+| ----- | ------- |
+| `/` | Landing — sign in or sign up |
+| `/signin` | Authentication (sign in / sign up tabs) |
+| `/r/{slug}` | Public RFQ page for vendor quote submission |
+| `/api/*` | REST API (organizations, requests, quotes, dashboard, audit) |
+
+---
+
+## Repository layout
 
 ```
-backend/          ASP.NET Core API, Domain, Infrastructure
-frontend/         Vite + React + TypeScript + Tailwind (minimal shell)
-tests/backend/    xUnit
-tests/e2e/        Playwright (later)
-deploy/           Docker Compose + Nginx + EC2 notes
-docs/             GOAL.md, TOOLS.md
+backend/          ASP.NET Core API, domain, and infrastructure
+frontend/         Vite + React + TypeScript + Tailwind
+tests/backend/    xUnit integration tests
+tests/e2e/        Playwright (planned)
+deploy/           Docker Compose and infrastructure notes
+docs/             Product goal and developer tooling reference
 ```
 
-## Prerequisites
-
-- .NET 8 SDK
-- Node.js 22+
-- Docker (optional, for compose)
-
-## Quick start
-
-```bash
-# Terminal 1 — API
-dotnet run --project backend/QuoteDepot.Api
-
-# Terminal 2 — SPA
-cd frontend
-npm install
-npm run dev
-```
-
-- API + Swagger: http://localhost:5101/swagger
-- Health: http://localhost:5101/api/health
-- SPA: http://localhost:5173
-
-## Docker
-
-```bash
-cp .env.example deploy/.env
-docker compose -f deploy/docker-compose.yml --env-file deploy/.env up --build
-```
-
-Open http://localhost:8080
-
-## Deploy (EC2)
-
-See [deploy/README.md](deploy/README.md) and [deploy/COST.md](deploy/COST.md) for Cognito setup, `t4g.micro` bootstrap, TLS (Cloudflare or Let's Encrypt), and the under-$20/mo path.
-
-## Tests
-
-```bash
-dotnet test
-```
-
-## Contributing
-
-Each major feature ships as its own branch → PR → squash merge into `main`. See the build plan for PR sequence.
+For local development and deployment details, see [docs/TOOLS.md](docs/TOOLS.md) and [deploy/README.md](deploy/README.md).
