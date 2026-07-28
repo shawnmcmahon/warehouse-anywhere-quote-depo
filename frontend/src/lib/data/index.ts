@@ -84,6 +84,26 @@ export function usePublicRequest(slug: string) {
   return query;
 }
 
+export function usePublicOrganization(slug: string) {
+  const query = useApiQuery(
+    () => endpoints.public.getOrganization(slug),
+    [slug],
+    { skip: !slug },
+  );
+  return query;
+}
+
+export function useOrgPendingQuotes(orgId: string) {
+  const { refreshKey } = useDataRefresh();
+  const { status } = useAuth();
+  const query = useApiQuery(
+    () => endpoints.orgs.quotes.listPending(orgId),
+    [orgId, refreshKey],
+    { skip: !orgId || status !== "authenticated" },
+  );
+  return query;
+}
+
 export function useOrgMembers(orgId: string) {
   const { refreshKey } = useDataRefresh();
   const { status } = useAuth();

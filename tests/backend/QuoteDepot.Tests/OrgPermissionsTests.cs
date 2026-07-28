@@ -7,13 +7,31 @@ public class OrgPermissionsTests
 {
     [Theory]
     [InlineData(OrgRole.Owner, true)]
+    [InlineData(OrgRole.Admin, false)]
+    [InlineData(OrgRole.Member, false)]
+    public void Approve_join_requests_owner_only(OrgRole role, bool expected)
+    {
+        Assert.Equal(expected, OrgPermissions.CanApproveJoinRequests(role));
+        Assert.Equal(expected, OrgPermissions.CanRejectJoinRequests(role));
+    }
+
+    [Theory]
+    [InlineData(OrgRole.Owner, true)]
+    [InlineData(OrgRole.Admin, true)]
+    [InlineData(OrgRole.Member, true)]
+    public void View_join_requests_all_members(OrgRole role, bool expected)
+    {
+        Assert.Equal(expected, OrgPermissions.CanViewJoinRequests(role));
+    }
+
+    [Theory]
+    [InlineData(OrgRole.Owner, true)]
     [InlineData(OrgRole.Admin, true)]
     [InlineData(OrgRole.Member, false)]
     public void Manage_membership_roles(OrgRole role, bool expected)
     {
         Assert.Equal(expected, OrgPermissions.CanManageMembership(role));
         Assert.Equal(expected, OrgPermissions.CanInvite(role));
-        Assert.Equal(expected, OrgPermissions.CanApproveJoinRequests(role));
         Assert.Equal(expected, OrgPermissions.CanManageQuotes(role));
         Assert.Equal(expected, OrgPermissions.CanAcceptQuotes(role));
         Assert.Equal(expected, OrgPermissions.CanViewAudit(role));

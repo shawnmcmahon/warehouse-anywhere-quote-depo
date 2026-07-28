@@ -34,7 +34,9 @@ public class PublicRequestsController : ControllerBase
             request.Description,
             request.Status.ToString(),
             request.PublicSlug,
-            request.Status == RequestStatus.Open));
+            request.Status == RequestStatus.Open,
+            request.Organization?.Name,
+            request.Organization?.PublicSlug));
     }
 
     [HttpPost("{slug}/quotes")]
@@ -98,7 +100,9 @@ public record PublicRequestResponse(
     string? Description,
     string Status,
     string PublicSlug,
-    bool AcceptingQuotes);
+    bool AcceptingQuotes,
+    string? OrganizationName,
+    string? OrganizationPublicSlug);
 
 public record PublicQuoteBody(
     string BusinessName,

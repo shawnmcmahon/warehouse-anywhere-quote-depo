@@ -3,6 +3,7 @@ using QuoteDepot.Domain.Authorization;
 using QuoteDepot.Domain.Entities;
 using QuoteDepot.Domain.Enums;
 using QuoteDepot.Domain.Exceptions;
+using QuoteDepot.Domain.Services;
 using QuoteDepot.Infrastructure.Data;
 
 namespace QuoteDepot.Api.Services;
@@ -24,6 +25,8 @@ public interface IOrganizationService
     Task<IReadOnlyList<JoinRequest>> ListJoinRequestsAsync(Guid orgId, User actor, CancellationToken ct = default);
     Task ApproveJoinRequestAsync(Guid orgId, User actor, Guid joinRequestId, CancellationToken ct = default);
     Task RejectJoinRequestAsync(Guid orgId, User actor, Guid joinRequestId, CancellationToken ct = default);
+    Task<Organization?> GetByPublicSlugAsync(string slug, CancellationToken ct = default);
+    Task<IReadOnlyList<Request>> ListPublicOpenRequestsAsync(string slug, CancellationToken ct = default);
 }
 
 public class OrganizationService : IOrganizationService
@@ -55,6 +58,7 @@ public class OrganizationService : IOrganizationService
             Name = name.Trim(),
             Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
             OwnerUserId = owner.Id,
+            PublicSlug = await GenerateUniqueOrgSlugAsync(ct),
         };
 
         var membership = new OrganizationMembership
@@ -458,14 +462,15 @@ public class OrganizationService : IOrganizationService
         CancellationToken ct = default)
     {
         var membership = await _users.RequireActiveMembershipAsync(orgId, actor.Id, ct);
-        OrgPermissions.Ensure(OrgPermissions.CanApproveJoinRequests(membership.Role), "You cannot view join requests.");
+        OrgPermissions.Ensure(OrgPermissions.CanViewJoinRequests(membership.Role), "You cannot view join requests.");
 
-        return await _db.JoinRequests
+        var items = await _db.JoinRequests
             .AsNoTracking()
             .Include(j => j.User)
             .Where(j => j.OrganizationId == orgId && j.Status == JoinRequestStatus.Pending)
-            .OrderBy(j => j.CreatedAt)
             .ToListAsync(ct);
+
+        return items.OrderBy(j => j.CreatedAt).ToList();
     }
 
     public async Task ApproveJoinRequestAsync(
@@ -533,7 +538,7 @@ public class OrganizationService : IOrganizationService
         CancellationToken ct = default)
     {
         var actorMembership = await _users.RequireActiveMembershipAsync(orgId, actor.Id, ct);
-        OrgPermissions.Ensure(OrgPermissions.CanApproveJoinRequests(actorMembership.Role), "You cannot reject join requests.");
+        OrgPermissions.Ensure(OrgPermissions.CanRejectJoinRequests(actorMembership.Role), "You cannot reject join requests.");
 
         var joinRequest = await _db.JoinRequests.SingleOrDefaultAsync(
             j => j.Id == joinRequestId && j.OrganizationId == orgId,
@@ -559,5 +564,48 @@ public class OrganizationService : IOrganizationService
             joinRequest.Id,
             new { joinRequest.UserId });
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<Organization?> GetByPublicSlugAsync(string slug, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return null;
+        }
+
+        return await _db.Organizations
+            .AsNoTracking()
+            .SingleOrDefaultAsync(o => o.PublicSlug == slug, ct);
+    }
+
+    public async Task<IReadOnlyList<Request>> ListPublicOpenRequestsAsync(string slug, CancellationToken ct = default)
+    {
+        var org = await GetByPublicSlugAsync(slug, ct);
+        if (org is null)
+        {
+            return Array.Empty<Request>();
+        }
+
+        var items = await _db.Requests
+            .AsNoTracking()
+            .Where(r => r.OrganizationId == org.Id && r.Status == RequestStatus.Open)
+            .ToListAsync(ct);
+
+        return items.OrderByDescending(r => r.CreatedAt).ToList();
+    }
+
+    private async Task<string> GenerateUniqueOrgSlugAsync(CancellationToken ct)
+    {
+        for (var i = 0; i < 8; i++)
+        {
+            var slug = PublicSlugGenerator.Create();
+            var exists = await _db.Organizations.AnyAsync(o => o.PublicSlug == slug, ct);
+            if (!exists)
+            {
+                return slug;
+            }
+        }
+
+        throw new DomainException("Could not generate a unique public link. Try again.");
     }
 }

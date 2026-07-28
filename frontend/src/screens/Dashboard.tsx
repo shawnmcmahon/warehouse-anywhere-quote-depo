@@ -1,24 +1,33 @@
 import { Link } from "react-router";
+import { useState } from "react";
 import { PageHeader } from "../ui/PageHeader";
-import { ButtonLink } from "../ui/Button";
-import { EmptyState, ErrorState, LoadingState } from "../ui/States";
+import { Button, ButtonLink } from "../ui/Button";
+import { EmptyState, ErrorState, LoadingState, Notice } from "../ui/States";
 import { cx } from "../lib/cx";
 import { canManageOrg } from "../lib/api-types";
+import { publicOrgUrl } from "../lib/format";
 import type { DashboardOrgResponse } from "../lib/api-types";
 import { useDashboardOrgs } from "../lib/data";
 
 function CountCell({
   label,
   value,
+  to,
   decision = false,
 }: {
   label: string;
   value: number;
+  to: string;
   decision?: boolean;
 }) {
   const waiting = decision && value > 0;
   return (
-    <div className="relative flex flex-col justify-between gap-2 bg-bp-vellum px-3 pb-3 pt-3.5">
+    <Link
+      to={to}
+      className={cx(
+        "bp-focus relative flex flex-col justify-between gap-2 bg-bp-vellum px-3 pb-3 pt-3.5 no-underline transition-colors hover:bg-bp-stock",
+      )}
+    >
       {waiting ? (
         <span
           aria-hidden="true"
@@ -41,14 +50,26 @@ function CountCell({
       >
         {String(value).padStart(2, "0")}
       </span>
-    </div>
+    </Link>
   );
 }
 
 function OrgCard({ org }: { org: DashboardOrgResponse }) {
   const manages = canManageOrg(org.role);
   const waiting =
-    org.pendingQuoteCount + (manages ? org.pendingJoinRequestCount : 0);
+    org.pendingQuoteCount + org.pendingJoinRequestCount;
+  const [copied, setCopied] = useState(false);
+  const vendorUrl = publicOrgUrl(org.publicSlug);
+
+  async function copyVendorLink() {
+    try {
+      await navigator.clipboard.writeText(vendorUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2400);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <section className="border border-bp-ink bg-bp-sheet">
@@ -73,45 +94,57 @@ function OrgCard({ org }: { org: DashboardOrgResponse }) {
           </p>
         ) : null}
 
-        <div
-          className={cx(
-            "grid gap-px border border-bp-ink bg-bp-ink",
-            manages ? "grid-cols-3" : "grid-cols-2",
-          )}
-        >
-          <CountCell label="Open requests" value={org.openRequestCount} />
+        <div className="grid grid-cols-3 gap-px border border-bp-ink bg-bp-ink">
+          <CountCell
+            label="Open requests"
+            value={org.openRequestCount}
+            to={`/app/orgs/${org.organizationId}/requests`}
+          />
           <CountCell
             label="Quotes to review"
             value={org.pendingQuoteCount}
+            to={`/app/orgs/${org.organizationId}/quotes`}
             decision
           />
-          {manages ? (
-            <CountCell
-              label="Join requests"
-              value={org.pendingJoinRequestCount}
-              decision
-            />
-          ) : null}
+          <CountCell
+            label="Join requests"
+            value={org.pendingJoinRequestCount}
+            to={`/app/orgs/${org.organizationId}/join-requests`}
+            decision
+          />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <ButtonLink
-            to={`/app/orgs/${org.organizationId}/requests`}
-            variant={waiting > 0 ? "primary" : "secondary"}
-            size="sm"
-          >
-            {waiting > 0
-              ? `Review ${waiting} item${waiting === 1 ? "" : "s"}`
-              : "View requests"}
-          </ButtonLink>
-          {manages ? (
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <ButtonLink
-              to={`/app/orgs/${org.organizationId}/settings`}
-              variant="quiet"
+              to={`/app/orgs/${org.organizationId}/requests`}
+              variant={waiting > 0 ? "primary" : "secondary"}
               size="sm"
             >
-              Settings
+              {waiting > 0
+                ? `Review ${waiting} item${waiting === 1 ? "" : "s"}`
+                : "View requests"}
             </ButtonLink>
+            {manages ? (
+              <ButtonLink
+                to={`/app/orgs/${org.organizationId}/settings`}
+                variant="quiet"
+                size="sm"
+              >
+                Settings
+              </ButtonLink>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="secondary" size="sm" onClick={copyVendorLink}>
+              Copy vendor link
+            </Button>
+            <span className="bp-data text-xs text-bp-graphite">
+              /o/{org.publicSlug}
+            </span>
+          </div>
+          {copied ? (
+            <Notice>Vendor link copied to your clipboard.</Notice>
           ) : null}
         </div>
       </div>
@@ -123,9 +156,7 @@ export default function Dashboard() {
   const { data: orgs, loading, error } = useDashboardOrgs();
   const totalWaiting = (orgs ?? []).reduce(
     (sum, org) =>
-      sum +
-      org.pendingQuoteCount +
-      (canManageOrg(org.role) ? org.pendingJoinRequestCount : 0),
+      sum + org.pendingQuoteCount + org.pendingJoinRequestCount,
     0,
   );
 

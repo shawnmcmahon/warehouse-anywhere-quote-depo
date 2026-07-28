@@ -10,6 +10,7 @@ public record DashboardOrgSummary(
     string Name,
     string? Description,
     string? LogoPath,
+    string PublicSlug,
     string Role,
     int OpenRequestCount,
     int PendingQuoteCount,
@@ -70,7 +71,6 @@ public class DashboardService : IDashboardService
                 .ToDictionaryAsync(x => x.OrganizationId, x => x.Count, cancellationToken);
 
         var adminOrgIds = memberships
-            .Where(m => m.Role is OrgRole.Owner or OrgRole.Admin)
             .Select(m => m.OrganizationId)
             .ToList();
 
@@ -92,16 +92,16 @@ public class DashboardService : IDashboardService
             .Select(m =>
             {
                 var orgId = m.OrganizationId;
-                var canSeeJoins = m.Role is OrgRole.Owner or OrgRole.Admin;
                 return new DashboardOrgSummary(
                     orgId,
                     m.Organization!.Name,
                     m.Organization.Description,
                     m.Organization.LogoPath,
+                    m.Organization.PublicSlug,
                     m.Role.ToString(),
                     openCountByOrg.GetValueOrDefault(orgId),
                     pendingQuotesByOrg.GetValueOrDefault(orgId),
-                    canSeeJoins ? pendingJoinsByOrg.GetValueOrDefault(orgId) : 0);
+                    pendingJoinsByOrg.GetValueOrDefault(orgId));
             })
             .ToList();
     }

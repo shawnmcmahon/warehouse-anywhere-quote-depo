@@ -10,7 +10,10 @@ import Dashboard from "./screens/Dashboard";
 import RequestsList from "./screens/RequestsList";
 import RequestDetail from "./screens/RequestDetail";
 import OrgSettings from "./screens/OrgSettings";
+import OrgQuotesReview from "./screens/OrgQuotesReview";
+import OrgJoinRequests from "./screens/OrgJoinRequests";
 import PublicQuote from "./screens/PublicQuote";
+import PublicOrgRequests from "./screens/PublicOrgRequests";
 import NotFound from "./screens/NotFound";
 import DesignIndex from "./designs/DesignIndex";
 import SwissEditorial from "./designs/swiss-editorial/SwissEditorial";
@@ -35,6 +38,7 @@ export default function App() {
               element={<Navigate to="/app/onboarding" replace />}
             />
             <Route path="/r/:slug" element={<PublicQuote />} />
+            <Route path="/o/:slug" element={<PublicOrgRequests />} />
 
             <Route path="/app" element={<RequireAuth />}>
               <Route element={<AppShell />}>
@@ -49,6 +53,8 @@ export default function App() {
                   path="orgs/:orgId/requests/:requestId"
                   element={<RequestDetail />}
                 />
+                <Route path="orgs/:orgId/quotes" element={<OrgQuotesReview />} />
+                <Route path="orgs/:orgId/join-requests" element={<OrgJoinRequests />} />
                 <Route path="orgs/:orgId/settings" element={<OrgSettings />} />
               </Route>
             </Route>

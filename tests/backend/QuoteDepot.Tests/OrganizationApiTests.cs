@@ -48,6 +48,40 @@ public class OrganizationApiTests : IClassFixture<QuoteDepotWebApplicationFactor
     }
 
     [Fact]
+    public async Task Owner_and_member_can_list_pending_join_requests()
+    {
+        var owner = Authed("list-join-owner", "list-join-owner@example.com");
+        var org = await (await owner.PostAsJsonAsync("/api/orgs", new CreateOrgRequest("Join List Org", null)))
+            .Content.ReadFromJsonAsync<OrgResponse>();
+        Assert.NotNull(org);
+
+        var joiner = Authed("list-joiner", "list-joiner@example.com");
+        await joiner.PostAsJsonAsync(
+            $"/api/orgs/{org.Id}/join-requests",
+            new CreateJoinRequest("Please add me"));
+
+        var ownerList = await owner.GetFromJsonAsync<List<JoinRequestResponse>>(
+            $"/api/orgs/{org.Id}/join-requests");
+        Assert.NotNull(ownerList);
+        Assert.Single(ownerList);
+        Assert.Equal("list-joiner@example.com", ownerList[0].Email);
+
+        var invite = await (await owner.PostAsJsonAsync(
+                $"/api/orgs/{org.Id}/invites",
+                new InviteRequest("list-member@example.com", "Member")))
+            .Content.ReadFromJsonAsync<InviteResponse>();
+        Assert.NotNull(invite);
+
+        var member = Authed("list-member", "list-member@example.com");
+        await member.PostAsJsonAsync("/api/orgs/invites/accept", new AcceptInviteRequest(invite.Token));
+
+        var memberList = await member.GetFromJsonAsync<List<JoinRequestResponse>>(
+            $"/api/orgs/{org.Id}/join-requests");
+        Assert.NotNull(memberList);
+        Assert.Single(memberList);
+    }
+
+    [Fact]
     public async Task Join_request_approve_and_member_cannot_invite()
     {
         var ownerClient = Authed("owner2", "owner2@example.com");

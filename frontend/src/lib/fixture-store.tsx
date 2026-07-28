@@ -417,12 +417,14 @@ function fixtureReducer(state: FixtureState, action: FixtureAction): FixtureStat
 
     case "CREATE_ORG": {
       const orgId = newId();
+      const orgSlug = orgId.replace(/-/g, "").slice(0, 16).toLowerCase();
       const org = {
         id: orgId,
         name: action.name,
         description: action.description,
         ownerUserId: seedUser.userId,
         logoPath: null,
+        publicSlug: orgSlug,
       };
       const membership = {
         membershipId: newId(),
@@ -438,6 +440,7 @@ function fixtureReducer(state: FixtureState, action: FixtureAction): FixtureStat
         name: action.name,
         description: action.description,
         logoPath: null,
+        publicSlug: orgSlug,
         role: "Owner" as const,
         openRequestCount: 0,
         pendingQuoteCount: 0,

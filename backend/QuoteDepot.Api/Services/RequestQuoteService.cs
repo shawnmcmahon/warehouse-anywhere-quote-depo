@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using QuoteDepot.Domain.Authorization;
 using QuoteDepot.Domain.Entities;
@@ -23,7 +22,18 @@ public interface IRequestQuoteService
     Task<IReadOnlyList<Quote>> ListQuotesAsync(Guid orgId, Guid requestId, User actor, CancellationToken ct = default);
     Task<Quote> TransitionQuoteAsync(Guid orgId, Guid requestId, Guid quoteId, User actor, QuoteStatus to, CancellationToken ct = default);
     Task AcceptQuoteAsync(Guid orgId, Guid requestId, Guid quoteId, User actor, CancellationToken ct = default);
+    Task<IReadOnlyList<PendingQuoteSummary>> ListPendingQuotesAsync(Guid orgId, User actor, CancellationToken ct = default);
 }
+
+public record PendingQuoteSummary(
+    Guid QuoteId,
+    Guid RequestId,
+    string RequestTitle,
+    string BusinessName,
+    decimal Amount,
+    QuoteUnit Unit,
+    QuoteStatus Status,
+    DateTimeOffset CreatedAt);
 
 public record SubmitQuoteInput(
     string BusinessName,
@@ -191,6 +201,7 @@ public class RequestQuoteService : IRequestQuoteService
     {
         return await _db.Requests
             .AsNoTracking()
+            .Include(r => r.Organization)
             .SingleOrDefaultAsync(r => r.PublicSlug == slug, ct);
     }
 
@@ -347,6 +358,35 @@ public class RequestQuoteService : IRequestQuoteService
         }
     }
 
+    public async Task<IReadOnlyList<PendingQuoteSummary>> ListPendingQuotesAsync(
+        Guid orgId,
+        User actor,
+        CancellationToken ct = default)
+    {
+        await _users.RequireActiveMembershipAsync(orgId, actor.Id, ct);
+        var pendingStatuses = new[] { QuoteStatus.Submitted, QuoteStatus.UnderReview };
+
+        var items = await _db.Quotes
+            .AsNoTracking()
+            .Where(q => pendingStatuses.Contains(q.Status))
+            .Join(
+                _db.Requests.AsNoTracking().Where(r => r.OrganizationId == orgId),
+                q => q.RequestId,
+                r => r.Id,
+                (q, r) => new PendingQuoteSummary(
+                    q.Id,
+                    r.Id,
+                    r.Title,
+                    q.BusinessName,
+                    q.Amount,
+                    q.Unit,
+                    q.Status,
+                    q.CreatedAt))
+            .ToListAsync(ct);
+
+        return items.OrderByDescending(x => x.CreatedAt).ToList();
+    }
+
     private async Task<Request> LoadOrgRequestAsync(
         Guid orgId,
         Guid requestId,
@@ -367,7 +407,7 @@ public class RequestQuoteService : IRequestQuoteService
     {
         for (var i = 0; i < 8; i++)
         {
-            var slug = Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
+            var slug = PublicSlugGenerator.Create();
             var exists = await _db.Requests.AnyAsync(r => r.PublicSlug == slug, ct);
             if (!exists)
             {

@@ -25,6 +25,8 @@ import type {
 
 export const CASCADE_ORG_ID = "8f14e45f-ceea-467a-9575-1b2c3d4e5f60";
 export const HARBOR_ORG_ID = "3c59dc04-8e88-4504-9b9d-2f4a5b6c7d80";
+export const CASCADE_PUBLIC_SLUG = "cascade-distribution-a1b2";
+export const HARBOR_PUBLIC_SLUG = "harbor-freight-b3c4";
 export const FLAGSHIP_REQUEST_ID = "b6d767d2-f8ed-4cb9-9b30-1a2b3c4d5e6f";
 export const FLAGSHIP_PUBLIC_SLUG = "overflow-pallet-storage-reno-4f2a";
 
@@ -75,6 +77,7 @@ export const dashboardOrgs: DashboardOrgResponse[] = [
     name: "Cascade Distribution",
     description: "Regional distribution, seven DCs across the Great Basin.",
     logoPath: null,
+    publicSlug: CASCADE_PUBLIC_SLUG,
     role: "Owner",
     openRequestCount: 3,
     pendingQuoteCount: 4,
@@ -85,6 +88,7 @@ export const dashboardOrgs: DashboardOrgResponse[] = [
     name: "Harbor Freight Co-op",
     description: "Shared drayage and cross-dock capacity for member shippers.",
     logoPath: null,
+    publicSlug: HARBOR_PUBLIC_SLUG,
     role: "Member",
     openRequestCount: 1,
     pendingQuoteCount: 0,
@@ -99,6 +103,7 @@ export const organizations: Record<string, OrgResponse> = {
     description: "Regional distribution, seven DCs across the Great Basin.",
     ownerUserId: currentUser.userId,
     logoPath: null,
+    publicSlug: CASCADE_PUBLIC_SLUG,
   },
   [HARBOR_ORG_ID]: {
     id: HARBOR_ORG_ID,
@@ -106,6 +111,7 @@ export const organizations: Record<string, OrgResponse> = {
     description: "Shared drayage and cross-dock capacity for member shippers.",
     ownerUserId: "9bf31c7f-f062-4bd4-a4de-5e0a1b2c3d40",
     logoPath: null,
+    publicSlug: HARBOR_PUBLIC_SLUG,
   },
 };
 
@@ -403,6 +409,7 @@ export const browsableOrgs: OrgResponse[] = [
     description: "Cooperative buying and shared warehousing for 40 independents.",
     ownerUserId: "d3d94468-02a4-4a9b-8f4a-112233445566",
     logoPath: null,
+    publicSlug: "sierra-grocers-c5d6",
   },
 ];
 
@@ -465,11 +472,14 @@ export function getOrgRole(
 
 /** Maps a full request to the public wire shape. */
 export function toPublicRequest(request: RequestResponse): PublicRequestResponse {
+  const org = organizations[request.organizationId];
   return {
     title: request.title,
     description: request.description,
     status: request.status,
     publicSlug: request.publicSlug,
     acceptingQuotes: request.status === "Open",
+    organizationName: org?.name ?? null,
+    organizationPublicSlug: org?.publicSlug ?? null,
   };
 }

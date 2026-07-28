@@ -435,36 +435,44 @@ export default function OrgSettings() {
                 </div>
                 <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
                   <JoinRequestStatusBadge status={request.status} />
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void runMutation(async () => {
-                        await endpoints.orgs.joinRequests.approve(
-                          orgId,
-                          request.joinRequestId,
-                        );
-                      })
-                    }
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void runMutation(async () => {
-                        await endpoints.orgs.joinRequests.reject(
-                          orgId,
-                          request.joinRequestId,
-                        );
-                      })
-                    }
-                  >
-                    Reject
-                  </Button>
+                  {isOwner ? (
+                    <>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() =>
+                          void runMutation(async () => {
+                            await endpoints.orgs.joinRequests.approve(
+                              orgId,
+                              request.joinRequestId,
+                            );
+                          })
+                        }
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() =>
+                          void runMutation(async () => {
+                            await endpoints.orgs.joinRequests.reject(
+                              orgId,
+                              request.joinRequestId,
+                            );
+                          })
+                        }
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="bp-anno text-[8px] text-bp-graphite">
+                      Only the owner can approve or reject
+                    </span>
+                  )}
                 </div>
               </li>
             ))}
