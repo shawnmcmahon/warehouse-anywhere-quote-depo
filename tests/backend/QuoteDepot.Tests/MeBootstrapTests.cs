@@ -79,7 +79,7 @@ public class MeBootstrapTests : IClassFixture<QuoteDepotWebApplicationFactory>
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var owner = new User { CognitoSub = $"owner-{Guid.NewGuid():N}", Email = "owner@example.com" };
-            var org = new Organization { Name = "Acme Warehousing", OwnerUserId = owner.Id, Owner = owner };
+            var org = new Organization { Name = "Acme Warehousing", PublicSlug = "acme-warehousing", OwnerUserId = owner.Id, Owner = owner };
             db.Users.Add(owner);
             db.Organizations.Add(org);
             db.Invites.Add(new Invite
@@ -114,7 +114,7 @@ public class MeBootstrapTests : IClassFixture<QuoteDepotWebApplicationFactory>
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var owner = new User { CognitoSub = $"owner-{Guid.NewGuid():N}", Email = "owner-case@example.com" };
-            var org = new Organization { Name = "Case Org", OwnerUserId = owner.Id, Owner = owner };
+            var org = new Organization { Name = "Case Org", PublicSlug = "case-org", OwnerUserId = owner.Id, Owner = owner };
             db.Users.Add(owner);
             db.Organizations.Add(org);
             db.Invites.Add(new Invite

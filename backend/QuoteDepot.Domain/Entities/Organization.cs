@@ -5,6 +5,7 @@ public class Organization
     public Guid Id { get; set; } = Guid.NewGuid();
     public required string Name { get; set; }
     public string? Description { get; set; }
+    public required string PublicSlug { get; set; }
     public string? LogoPath { get; set; }
     public Guid OwnerUserId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

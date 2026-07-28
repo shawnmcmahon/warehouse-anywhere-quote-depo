@@ -33,12 +33,14 @@ public class AppDbContext : DbContext
         {
             e.Property(x => x.Name).HasMaxLength(200);
             e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.PublicSlug).HasMaxLength(64);
             e.Property(x => x.LogoPath).HasMaxLength(500);
             e.HasOne(x => x.Owner)
                 .WithMany()
                 .HasForeignKey(x => x.OwnerUserId)
                 .OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.Name);
+            e.HasIndex(x => x.PublicSlug).IsUnique();
         });
 
         modelBuilder.Entity<OrganizationMembership>(e =>

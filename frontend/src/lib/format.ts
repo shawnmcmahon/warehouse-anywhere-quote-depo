@@ -109,6 +109,11 @@ export function publicRequestUrl(slug: string): string {
   return `${window.location.origin}/r/${slug}`;
 }
 
+/** Shareable vendor portal listing all open requests for an organization. */
+export function publicOrgUrl(slug: string): string {
+  return `${window.location.origin}/o/${slug}`;
+}
+
 /** Trim to a whole word so a summary never breaks mid-term. */
 export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;

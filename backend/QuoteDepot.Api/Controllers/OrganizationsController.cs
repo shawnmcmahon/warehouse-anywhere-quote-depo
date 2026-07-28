@@ -255,10 +255,10 @@ public record AcceptInviteRequest(string Token);
 public record ChangeRoleRequest(string Role);
 public record CreateJoinRequest(string? Message);
 
-public record OrgResponse(Guid Id, string Name, string? Description, Guid OwnerUserId, string? LogoPath)
+public record OrgResponse(Guid Id, string Name, string? Description, Guid OwnerUserId, string? LogoPath, string PublicSlug)
 {
     public static OrgResponse From(Domain.Entities.Organization o) =>
-        new(o.Id, o.Name, o.Description, o.OwnerUserId, o.LogoPath);
+        new(o.Id, o.Name, o.Description, o.OwnerUserId, o.LogoPath, o.PublicSlug);
 }
 
 public record MemberResponse(Guid MembershipId, Guid UserId, string? Email, string? Name, string Role, string Status)

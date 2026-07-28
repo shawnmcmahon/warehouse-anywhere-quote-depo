@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { Button, ButtonLink } from "../ui/Button";
 import { Panel } from "../ui/Panel";
@@ -7,6 +6,7 @@ import { TitleBlock } from "../ui/TitleBlock";
 import { SelectField, TextAreaField, TextField } from "../ui/Field";
 import { RequestStatusBadge } from "../ui/StatusBadge";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
+import { GuestFrame } from "../ui/GuestFrame";
 import type { QuoteUnit, RequestStatus } from "../lib/api-types";
 import { endpoints, usePublicRequest } from "../lib/data";
 
@@ -15,46 +15,6 @@ const UNIT_OPTIONS = [
   { value: "Weekly", label: "Per week" },
   { value: "OneTime", label: "One time" },
 ];
-
-function GuestFrame({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col bg-bp-vellum text-bp-ink">
-      <a
-        href="#main"
-        className="bp-anno sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-bp-ink focus:px-4 focus:py-2 focus:text-[10px] focus:text-bp-hazard"
-      >
-        Skip to content
-      </a>
-
-      <header className="border-b border-bp-ink bg-bp-stock">
-        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-2.5 lg:px-8">
-          <Link to="/" className="bp-focus flex items-center gap-3 no-underline">
-            <span className="flex h-6 w-6 items-center justify-center border border-bp-ink bg-bp-ink text-[10px] font-bold text-bp-hazard">
-              QD
-            </span>
-            <span className="bp-display text-base text-bp-ink">Quote Depot</span>
-          </Link>
-          <span className="bp-anno text-[9px] text-bp-graphite">
-            Bidding — no account needed
-          </span>
-        </div>
-      </header>
-
-      <main id="main" className="flex-1">
-        <div className="mx-auto max-w-[1120px] px-5 py-10 lg:px-8 lg:py-14">
-          {children}
-        </div>
-      </main>
-
-      <footer className="mt-auto border-t border-bp-ink bg-bp-stock">
-        <div className="bp-anno mx-auto max-w-[1120px] px-5 py-3 text-[8px] text-bp-graphite lg:px-8">
-          Quote Depot — requests are issued as fixed sheets so every bid prices
-          the same work.
-        </div>
-      </footer>
-    </div>
-  );
-}
 
 function parseDateInput(value: FormDataEntryValue | null): string | null {
   const text = String(value ?? "").trim();
@@ -95,6 +55,7 @@ export default function PublicQuote() {
   const status = request.status as RequestStatus;
 
   if (submitted) {
+    const orgSlug = request.organizationPublicSlug;
     return (
       <GuestFrame>
         <div className="max-w-[62ch]">
@@ -108,16 +69,22 @@ export default function PublicQuote() {
             details you gave if they move it forward.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink to="/signin" variant="primary" size="lg">
-              Sign in to track it
-            </ButtonLink>
             <Button
-              variant="quiet"
+              variant="primary"
               size="lg"
               onClick={() => setSubmitted(false)}
             >
               Submit another bid
             </Button>
+            {orgSlug ? (
+              <ButtonLink
+                to={`/o/${orgSlug}`}
+                variant="secondary"
+                size="lg"
+              >
+                View all open requests
+              </ButtonLink>
+            ) : null}
           </div>
         </div>
       </GuestFrame>
@@ -303,16 +270,17 @@ export default function PublicQuote() {
                   >
                     {submitting ? "Submitting…" : "Submit bid"}
                   </Button>
-                  <p className="bp-body m-0 text-xs text-bp-graphite">
-                    No account required.{" "}
-                    <Link
-                      to="/signin"
-                      className="bp-focus text-bp-line underline decoration-dotted underline-offset-4"
-                    >
-                      Sign in
-                    </Link>{" "}
-                    first if you want to track it.
-                  </p>
+                  {request.organizationPublicSlug ? (
+                    <p className="bp-body m-0 text-xs text-bp-graphite">
+                      <Link
+                        to={`/o/${request.organizationPublicSlug}`}
+                        className="bp-focus text-bp-line underline decoration-dotted underline-offset-4"
+                      >
+                        View all open requests
+                      </Link>{" "}
+                      from {request.organizationName ?? "this organization"}.
+                    </p>
+                  ) : null}
                 </div>
               </form>
             </Panel>

@@ -4,10 +4,10 @@ import { PageHeader } from "../ui/PageHeader";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
 import { TextAreaField, TextField } from "../ui/Field";
-import { EmptyState, ErrorState, LoadingState } from "../ui/States";
+import { EmptyState, ErrorState, LoadingState, Notice } from "../ui/States";
 import { RequestStatusBadge } from "../ui/StatusBadge";
 import { HeadRow, Row, TBody, THead, TH, TD, Table } from "../ui/Table";
-import { day, truncate } from "../lib/format";
+import { day, publicOrgUrl, truncate } from "../lib/format";
 import { endpoints, useDataRefresh, useOrg, useOrgRequests } from "../lib/data";
 
 export default function RequestsList() {
@@ -18,6 +18,7 @@ export default function RequestsList() {
   const [drafting, setDrafting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const org = orgQuery.data;
   const orgRequests = requestsQuery.data ?? [];
@@ -75,6 +76,18 @@ export default function RequestsList() {
     }
   }
 
+  const vendorUrl = publicOrgUrl(org.publicSlug);
+
+  async function copyVendorLink() {
+    try {
+      await navigator.clipboard.writeText(vendorUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2400);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -97,6 +110,27 @@ export default function RequestsList() {
           </Button>
         }
       />
+
+      <Panel title="Vendor link" annotation="Share with all vendors">
+        <p className="bp-body m-0 max-w-[54ch] text-sm text-bp-graphite">
+          Send this link so vendors can browse every open request and submit
+          bids without signing in.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button variant="secondary" size="sm" onClick={copyVendorLink}>
+            Copy vendor link
+          </Button>
+          <Link
+            to={`/o/${org.publicSlug}`}
+            className="bp-focus bp-data text-xs text-bp-line underline decoration-dotted underline-offset-4"
+          >
+            /o/{org.publicSlug}
+          </Link>
+        </div>
+        {copied ? (
+          <Notice className="mt-3">Vendor link copied to your clipboard.</Notice>
+        ) : null}
+      </Panel>
 
       {drafting ? (
         <Panel title="New request" annotation="Issued open for bid">

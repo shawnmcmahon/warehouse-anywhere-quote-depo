@@ -10,7 +10,12 @@ public static class OrgPermissions
 
     public static bool CanInvite(OrgRole role) => CanManageMembership(role);
 
-    public static bool CanApproveJoinRequests(OrgRole role) => CanManageMembership(role);
+    public static bool CanApproveJoinRequests(OrgRole role) => role == OrgRole.Owner;
+
+    public static bool CanRejectJoinRequests(OrgRole role) => role == OrgRole.Owner;
+
+    public static bool CanViewJoinRequests(OrgRole role) =>
+        role is OrgRole.Owner or OrgRole.Admin or OrgRole.Member;
 
     public static bool CanChangeRoles(OrgRole role) => role == OrgRole.Owner;
 

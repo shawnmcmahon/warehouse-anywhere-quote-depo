@@ -22,6 +22,7 @@ public class AppDbContextTests
         var org = new Organization
         {
             Name = "Depot Co",
+            PublicSlug = "depot-co-test",
             OwnerUserId = user.Id,
             Owner = user,
         };

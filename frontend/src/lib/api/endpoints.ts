@@ -8,6 +8,8 @@ import type {
   OrgResponse,
   OrgRole,
   PublicRequestResponse,
+  PublicOrganizationResponse,
+  PendingQuoteResponse,
   QuoteResponse,
   QuoteStatus,
   QuoteUnit,
@@ -136,8 +138,14 @@ export const endpoints = {
           ),
       },
     },
+    quotes: {
+      listPending: (orgId: string) =>
+        api<PendingQuoteResponse[]>(`/orgs/${orgId}/quotes/pending`),
+    },
   },
   public: {
+    getOrganization: (slug: string) =>
+      api<PublicOrganizationResponse>(`/public/orgs/${slug}`, { auth: false }),
     getRequest: (slug: string) =>
       api<PublicRequestResponse>(`/public/requests/${slug}`, { auth: false }),
     submitQuote: (

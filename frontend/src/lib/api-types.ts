@@ -30,6 +30,7 @@ export type OrgResponse = {
   description: string | null;
   ownerUserId: string;
   logoPath: string | null;
+  publicSlug: string;
 };
 
 export type MemberResponse = {
@@ -89,6 +90,33 @@ export type PublicRequestResponse = {
   status: RequestStatus;
   publicSlug: string;
   acceptingQuotes: boolean;
+  organizationName: string | null;
+  organizationPublicSlug: string | null;
+};
+
+export type PublicOpenRequestResponse = {
+  title: string;
+  description: string | null;
+  publicSlug: string;
+  createdAt: string;
+};
+
+export type PublicOrganizationResponse = {
+  name: string;
+  description: string | null;
+  publicSlug: string;
+  openRequests: PublicOpenRequestResponse[];
+};
+
+export type PendingQuoteResponse = {
+  quoteId: string;
+  requestId: string;
+  requestTitle: string;
+  businessName: string;
+  amount: number;
+  unit: QuoteUnit;
+  status: QuoteStatus;
+  createdAt: string;
 };
 
 export type DashboardOrgResponse = {
@@ -96,6 +124,7 @@ export type DashboardOrgResponse = {
   name: string;
   description: string | null;
   logoPath: string | null;
+  publicSlug: string;
   role: OrgRole;
   openRequestCount: number;
   pendingQuoteCount: number;
