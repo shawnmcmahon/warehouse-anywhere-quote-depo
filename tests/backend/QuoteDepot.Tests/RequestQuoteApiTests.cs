@@ -292,6 +292,51 @@ public class RequestQuoteApiTests : IClassFixture<QuoteDepotWebApplicationFactor
     }
 
     [Fact]
+    public async Task Owner_can_return_under_review_quote_to_submitted()
+    {
+        var owner = Authed("rq-return-owner", "rq-return-owner@example.com");
+        var org = await (await owner.PostAsJsonAsync("/api/orgs", new CreateOrgRequest("Return Org", null)))
+            .Content.ReadFromJsonAsync<OrgResponse>();
+        Assert.NotNull(org);
+
+        var request = await (await owner.PostAsJsonAsync(
+                $"/api/orgs/{org.Id}/requests",
+                new CreateRequestBody("Return RFQ", null)))
+            .Content.ReadFromJsonAsync<RequestResponse>();
+        Assert.NotNull(request);
+
+        var guest = _factory.CreateClient();
+        var quote = await (await guest.PostAsJsonAsync(
+                $"/api/public/requests/{request.PublicSlug}/quotes",
+                new PublicQuoteBody(
+                    "Vendor",
+                    100m,
+                    "OneTime",
+                    null,
+                    null,
+                    "Ret",
+                    null,
+                    "ret@vendor.test",
+                    null,
+                    "Submitted")))
+            .Content.ReadFromJsonAsync<QuoteResponse>();
+        Assert.NotNull(quote);
+
+        var review = await owner.PostAsJsonAsync(
+            $"/api/orgs/{org.Id}/requests/{request.Id}/quotes/{quote.Id}/status",
+            new TransitionQuoteBody("UnderReview"));
+        Assert.Equal(HttpStatusCode.OK, review.StatusCode);
+
+        var returned = await owner.PostAsJsonAsync(
+            $"/api/orgs/{org.Id}/requests/{request.Id}/quotes/{quote.Id}/status",
+            new TransitionQuoteBody("Submitted"));
+        Assert.Equal(HttpStatusCode.OK, returned.StatusCode);
+        var body = await returned.Content.ReadFromJsonAsync<QuoteResponse>();
+        Assert.NotNull(body);
+        Assert.Equal("Submitted", body.Status);
+    }
+
+    [Fact]
     public async Task Accept_via_status_endpoint_is_rejected()
     {
         var owner = Authed("rq-status-accept", "rq-status-accept@example.com");

@@ -493,6 +493,19 @@ export default function RequestDetail() {
                                 </DeepButton>
                               ) : null}
                               {QUOTE_TRANSITIONS[quote.status].includes(
+                                "Submitted",
+                              ) ? (
+                                <DeepButton
+                                  tone="advance"
+                                  disabled={mutating}
+                                  onClick={() =>
+                                    void transitionQuote(quote.id, "Submitted")
+                                  }
+                                >
+                                  Return to submitted
+                                </DeepButton>
+                              ) : null}
+                              {QUOTE_TRANSITIONS[quote.status].includes(
                                 "Rejected",
                               ) ? (
                                 <DeepButton

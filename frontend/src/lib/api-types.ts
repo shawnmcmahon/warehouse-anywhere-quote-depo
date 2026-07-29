@@ -178,7 +178,7 @@ export type BootstrapResponse = {
 export const QUOTE_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   Draft: ["Submitted"],
   Submitted: ["UnderReview", "Rejected"],
-  UnderReview: ["Accepted", "Rejected"],
+  UnderReview: ["Submitted", "Accepted", "Rejected"],
   Accepted: [],
   Rejected: [],
 };
