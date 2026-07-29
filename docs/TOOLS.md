@@ -7,7 +7,7 @@
 | Frontend | React + Vite + TypeScript + Tailwind CSS |
 | Backend | ASP.NET Core 8 Web API |
 | Data | EF Core + SQLite (file on EBS) |
-| Auth | Amazon Cognito (email + Google) |
+| Auth | Amazon Cognito (email/password) |
 | Deploy | Single EC2, Docker Compose, Nginx (no ALB) |
 | Backend tests | xUnit |
 | E2E | Python Playwright (after UI exists) |

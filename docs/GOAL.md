@@ -4,7 +4,7 @@ Multi-user RFQ (request for quote) app for warehouse / logistics organizations.
 
 ## Core workflow
 
-1. User signs in (Amazon Cognito: email/password + Google).
+1. User signs in (Amazon Cognito: email/password).
 2. On first sign-in: create an organization, accept an invite, or request to join an existing org.
 3. Org members create **Requests** (open RFQs) with a public share link.
 4. Guests (or signed-in users) submit **Quotes** on `/r/{slug}`.
