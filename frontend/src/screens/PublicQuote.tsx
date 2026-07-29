@@ -128,6 +128,18 @@ export default function PublicQuote() {
             described. If something is missing, say so in your notes rather
             than assuming.
           </p>
+
+          {request.organizationPublicSlug ? (
+            <p className="bp-body m-0 mt-6 max-w-[52ch] text-sm text-bp-graphite">
+              <Link
+                to={`/o/${request.organizationPublicSlug}`}
+                className="bp-focus text-bp-line underline decoration-dotted underline-offset-4"
+              >
+                View all open requests
+              </Link>{" "}
+              from {request.organizationName ?? "this organization"}.
+            </p>
+          ) : null}
         </div>
 
         <div className="lg:col-span-7">
@@ -270,17 +282,6 @@ export default function PublicQuote() {
                   >
                     {submitting ? "Submitting…" : "Submit bid"}
                   </Button>
-                  {request.organizationPublicSlug ? (
-                    <p className="bp-body m-0 text-xs text-bp-graphite">
-                      <Link
-                        to={`/o/${request.organizationPublicSlug}`}
-                        className="bp-focus text-bp-line underline decoration-dotted underline-offset-4"
-                      >
-                        View all open requests
-                      </Link>{" "}
-                      from {request.organizationName ?? "this organization"}.
-                    </p>
-                  ) : null}
                 </div>
               </form>
             </Panel>

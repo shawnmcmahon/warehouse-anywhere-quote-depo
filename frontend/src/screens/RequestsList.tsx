@@ -111,69 +111,6 @@ export default function RequestsList() {
         }
       />
 
-      <Panel title="Vendor link" annotation="Share with all vendors">
-        <p className="bp-body m-0 max-w-[54ch] text-sm text-bp-graphite">
-          Send this link so vendors can browse every open request and submit
-          bids without signing in.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button variant="secondary" size="sm" onClick={copyVendorLink}>
-            Copy vendor link
-          </Button>
-          <Link
-            to={`/o/${org.publicSlug}`}
-            className="bp-focus bp-data text-xs text-bp-line underline decoration-dotted underline-offset-4"
-          >
-            /o/{org.publicSlug}
-          </Link>
-        </div>
-        {copied ? (
-          <Notice className="mt-3">Vendor link copied to your clipboard.</Notice>
-        ) : null}
-      </Panel>
-
-      {drafting ? (
-        <Panel title="New request" annotation="Issued open for bid">
-          {error ? (
-            <ErrorState title="Could not raise request" body={error} className="mb-5" />
-          ) : null}
-          <form className="flex flex-col gap-5" onSubmit={handleCreate}>
-            <TextField
-              label="Title"
-              name="title"
-              required
-              placeholder="Overflow pallet storage + weekly outbound"
-              hint="What a vendor needs to read to know whether to bid."
-            />
-            <TextAreaField
-              label="Scope"
-              name="description"
-              optional
-              rows={5}
-              placeholder="Volumes, region, term, dock hours, compliance requirements."
-              hint="Stated once here so every bid prices the same work."
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                disabled={submitting}
-              >
-                {submitting ? "Raising…" : "Raise request"}
-              </Button>
-              <Button
-                variant="quiet"
-                size="md"
-                onClick={() => setDrafting(false)}
-              >
-                Discard
-              </Button>
-            </div>
-          </form>
-        </Panel>
-      ) : null}
-
       {orgRequests.length === 0 ? (
         <EmptyState
           title="No requests raised yet"
@@ -190,7 +127,7 @@ export default function RequestsList() {
         />
       ) : (
         <Panel
-          title="Issued sheets"
+          title="Request History"
           annotation={`${openCount} open of ${orgRequests.length}`}
           flush
         >
@@ -245,6 +182,69 @@ export default function RequestsList() {
           </div>
         </Panel>
       )}
+
+      {drafting ? (
+        <Panel title="New request" annotation="Issued open for bid">
+          {error ? (
+            <ErrorState title="Could not raise request" body={error} className="mb-5" />
+          ) : null}
+          <form className="flex flex-col gap-5" onSubmit={handleCreate}>
+            <TextField
+              label="Title"
+              name="title"
+              required
+              placeholder="Overflow pallet storage + weekly outbound"
+              hint="What a vendor needs to read to know whether to bid."
+            />
+            <TextAreaField
+              label="Scope"
+              name="description"
+              optional
+              rows={5}
+              placeholder="Volumes, region, term, dock hours, compliance requirements."
+              hint="Stated once here so every bid prices the same work."
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                disabled={submitting}
+              >
+                {submitting ? "Raising…" : "Raise request"}
+              </Button>
+              <Button
+                variant="quiet"
+                size="md"
+                onClick={() => setDrafting(false)}
+              >
+                Discard
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      ) : null}
+
+      <Panel title="Vendor link" annotation="Share with all vendors">
+        <p className="bp-body m-0 max-w-[54ch] text-sm text-bp-graphite">
+          Send this link so vendors can browse every open request and submit
+          bids without signing in.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button variant="secondary" size="sm" onClick={copyVendorLink}>
+            Copy vendor link
+          </Button>
+          <Link
+            to={`/o/${org.publicSlug}`}
+            className="bp-focus bp-data text-xs text-bp-line underline decoration-dotted underline-offset-4"
+          >
+            /o/{org.publicSlug}
+          </Link>
+        </div>
+        {copied ? (
+          <Notice className="mt-3">Vendor link copied to your clipboard.</Notice>
+        ) : null}
+      </Panel>
     </div>
   );
 }
