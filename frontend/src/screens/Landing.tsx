@@ -10,7 +10,7 @@ import { ButtonLink } from "../ui/Button";
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-bp-vellum text-bp-ink">
+    <div className="flex min-h-screen flex-col bg-bp-vellum text-bp-ink">
       <a
         href="#main"
         className="bp-anno sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-bp-ink focus:px-4 focus:py-2 focus:text-[10px] focus:text-bp-hazard"
@@ -27,26 +27,18 @@ export default function Landing() {
             <span className="bp-display text-base">Warehouse Anywhere</span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Link
-              to="/signin?mode=signup"
-              className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-line"
-            >
-              Sign up
-            </Link>
-            <Link
-              to="/signin"
-              className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-line"
-            >
-              Sign in
-            </Link>
-          </div>
+          <Link
+            to="/signin"
+            className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-line"
+          >
+            Sign in
+          </Link>
         </div>
       </header>
 
       <main
         id="main"
-        className="mx-auto flex max-w-[720px] flex-1 flex-col px-5 py-16 lg:px-8 lg:py-24"
+        className="mx-auto flex w-full max-w-[720px] flex-1 flex-col px-5 py-16 lg:px-8 lg:py-24"
       >
         <div className="border border-bp-ink bg-bp-sheet">
           <div className="px-6 py-10 sm:px-8 sm:py-12">
@@ -69,40 +61,6 @@ export default function Landing() {
             </div>
           </div>
         </div>
-
-        <section className="mt-10" aria-labelledby="quick-links-heading">
-          <h2
-            id="quick-links-heading"
-            className="bp-anno m-0 text-[10px] text-bp-graphite"
-          >
-            Quick links
-          </h2>
-
-          <ul className="mt-3 divide-y divide-bp-line/30 border border-bp-ink bg-bp-sheet">
-            <li>
-              <Link
-                to="/signin?mode=signup"
-                className="bp-body bp-focus block px-5 py-3.5 text-sm no-underline transition-colors hover:bg-bp-line/8"
-              >
-                Sign up for a buyer account
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/signin"
-                className="bp-body bp-focus block px-5 py-3.5 text-sm no-underline transition-colors hover:bg-bp-line/8"
-              >
-                Sign in to manage requests
-              </Link>
-            </li>
-            <li>
-              <p className="bp-body m-0 px-5 py-3.5 text-sm text-bp-graphite">
-                Bidding on a request? Use the link you were sent — no account
-                needed.
-              </p>
-            </li>
-          </ul>
-        </section>
       </main>
 
       <footer className="mt-auto border-t border-bp-ink bg-bp-stock">

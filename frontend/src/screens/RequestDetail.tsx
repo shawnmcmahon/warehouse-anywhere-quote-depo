@@ -21,6 +21,7 @@ import {
   useCanManageOrg,
   useDataRefresh,
   useOrg,
+  useOrgRole,
   useRequest,
   useRequestQuotes,
 } from "../lib/data";
@@ -107,6 +108,7 @@ export default function RequestDetail() {
   const requestQuery = useRequest(orgId, requestId);
   const quotesQuery = useRequestQuotes(orgId, requestId);
   const canManageQuotes = useCanManageOrg(orgId);
+  const orgRole = useOrgRole(orgId);
   const { invalidate } = useDataRefresh();
 
   const org = orgQuery.data;
@@ -218,6 +220,7 @@ export default function RequestDetail() {
   }
 
   const requestTransitions = REQUEST_TRANSITIONS[request.status];
+  const canSubmitBid = orgRole !== null && request.status === "Open";
 
   return (
     <div className="flex flex-col gap-8">
@@ -232,8 +235,18 @@ export default function RequestDetail() {
           { label: request.title },
         ]}
         actions={
-          request.status === "Open" && requestTransitions.length > 0 ? (
+          request.status === "Open" &&
+          (canSubmitBid || requestTransitions.length > 0) ? (
             <>
+              {canSubmitBid ? (
+                <ButtonLink
+                  to={`/r/${request.publicSlug}`}
+                  variant="primary"
+                  size="md"
+                >
+                  Submit a bid
+                </ButtonLink>
+              ) : null}
               {requestTransitions.includes("Closed") ? (
                 <Button
                   variant="secondary"
@@ -277,25 +290,6 @@ export default function RequestDetail() {
           ]}
         />
       </PageHeader>
-
-      <Panel
-        title="Public link"
-        annotation="No sign-in required to bid"
-        action={
-          <Button variant="secondary" size="sm" onClick={copyLink}>
-            {copied ? "Copied" : "Copy link"}
-          </Button>
-        }
-      >
-        <p className="bp-body m-0 mb-3 max-w-[62ch] text-sm text-bp-graphite">
-          Send this to vendors. They price the same fields you see below, and
-          their bid lands on this sheet.
-        </p>
-        <p className="bp-data m-0 overflow-x-auto border border-bp-ink bg-bp-field px-3 py-2 text-xs text-bp-line">
-          {publicUrl}
-        </p>
-        {copied ? <Notice className="mt-3">Link copied to your clipboard.</Notice> : null}
-      </Panel>
 
       {acceptTarget ? (
         <div
@@ -579,16 +573,27 @@ export default function RequestDetail() {
             </table>
           </div>
 
-          {comparison.benchmarkMonths !== null ? (
-            <p className="bp-body m-0 border-t border-bp-line/25 px-5 py-4 text-sm text-bp-vellum/70">
-              Term total extends each rate across the window that vendor
-              offered, not the longest window on the sheet. A bid that starts
-              late costs less in total and covers less of the job — the term
-              column is where that shows.
-            </p>
-          ) : null}
         </section>
       )}
+
+      <Panel
+        title="Public link"
+        annotation="No sign-in required to bid"
+        action={
+          <Button variant="secondary" size="sm" onClick={copyLink}>
+            {copied ? "Copied" : "Copy link"}
+          </Button>
+        }
+      >
+        <p className="bp-body m-0 mb-3 max-w-[62ch] text-sm text-bp-graphite">
+          Send this to vendors. They price the same fields you see below, and
+          their bid lands on this sheet.
+        </p>
+        <p className="bp-data m-0 overflow-x-auto border border-bp-ink bg-bp-field px-3 py-2 text-xs text-bp-line">
+          {publicUrl}
+        </p>
+        {copied ? <Notice className="mt-3">Link copied to your clipboard.</Notice> : null}
+      </Panel>
     </div>
   );
 }

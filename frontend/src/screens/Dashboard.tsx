@@ -82,9 +82,20 @@ function OrgCard({ org }: { org: DashboardOrgResponse }) {
             {org.name}
           </Link>
         </h2>
-        <span className="bp-anno border border-bp-graphite/45 px-1.5 py-0.5 text-[8px] text-bp-graphite">
-          {org.role}
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="bp-anno border border-bp-graphite/45 px-1.5 py-0.5 text-[8px] text-bp-graphite">
+            {org.role}
+          </span>
+          {manages ? (
+            <ButtonLink
+              to={`/app/orgs/${org.organizationId}/settings`}
+              variant="quiet"
+              size="sm"
+            >
+              Settings
+            </ButtonLink>
+          ) : null}
+        </div>
       </header>
 
       <div className="p-4">
@@ -125,17 +136,6 @@ function OrgCard({ org }: { org: DashboardOrgResponse }) {
                 ? `Review ${waiting} item${waiting === 1 ? "" : "s"}`
                 : "View requests"}
             </ButtonLink>
-            {manages ? (
-              <ButtonLink
-                to={`/app/orgs/${org.organizationId}/settings`}
-                variant="quiet"
-                size="sm"
-              >
-                Settings
-              </ButtonLink>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
             <Button variant="secondary" size="sm" onClick={copyVendorLink}>
               Copy vendor link
             </Button>
