@@ -5,12 +5,18 @@ import { PasswordField, TextField } from "../ui/Field";
 import { ErrorState } from "../ui/States";
 import { useAuth } from "../lib/auth/AuthProvider";
 
-type AuthMode = "signin" | "signup" | "verify";
+type AuthMode = "signin" | "signup" | "verify" | "forgot";
+type ForgotStep = "request" | "reset";
 
 function parseMode(value: string | null): AuthMode {
   if (value === "signup") return "signup";
   if (value === "verify") return "verify";
+  if (value === "forgot") return "forgot";
   return "signin";
+}
+
+function parseForgotStep(value: string | null): ForgotStep {
+  return value === "reset" ? "reset" : "request";
 }
 
 export default function SignIn() {
@@ -22,10 +28,14 @@ export default function SignIn() {
     signUpWithEmail,
     confirmSignUpWithEmail,
     resendSignUpCode,
+    requestPasswordReset,
+    confirmPasswordReset,
     useDevAuth,
   } = useAuth();
   const mode = parseMode(searchParams.get("mode"));
+  const forgotStep = parseForgotStep(searchParams.get("step"));
   const verifyEmail = searchParams.get("email")?.trim().toLowerCase() ?? "";
+  const forgotEmail = searchParams.get("email")?.trim().toLowerCase() ?? "";
   const signInEmail = searchParams.get("email")?.trim().toLowerCase() ?? "";
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
@@ -56,7 +66,30 @@ export default function SignIn() {
       return;
     }
 
+    if (nextMode === "forgot") {
+      setSearchParams(
+        email ? { mode: "forgot", email } : { mode: "forgot" },
+        { replace: true },
+      );
+      return;
+    }
+
     setSearchParams(email ? { email } : {}, { replace: true });
+  }
+
+  function switchForgotStep(step: ForgotStep, email?: string) {
+    setError(null);
+    setSuccessMessage(null);
+    setPasswordVisible(false);
+
+    if (step === "reset" && email) {
+      setSearchParams({ mode: "forgot", email, step: "reset" }, { replace: true });
+      return;
+    }
+
+    setSearchParams(email ? { mode: "forgot", email } : { mode: "forgot" }, {
+      replace: true,
+    });
   }
 
   async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
@@ -84,6 +117,15 @@ export default function SignIn() {
         setError(null);
         setSuccessMessage(
           "Enter the verification code from your email to finish setting up your account.",
+        );
+      } else if (
+        message ===
+        "Password reset required. Use forgot password or contact support."
+      ) {
+        switchMode("forgot", email);
+        setError(null);
+        setSuccessMessage(
+          "Your account requires a new password. Request a reset code below.",
         );
       } else {
         setError(message);
@@ -194,6 +236,104 @@ export default function SignIn() {
     }
   }
 
+  async function handleForgotRequest(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    setSubmitting(true);
+    const form = event.currentTarget;
+    const email = String(new FormData(form).get("email") ?? "").trim();
+
+    if (!email) {
+      setError("Enter your email to receive a reset code.");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await requestPasswordReset(email);
+      switchForgotStep("reset", email);
+      setSuccessMessage(
+        "We sent a reset code to your email. Enter it below with your new password.",
+      );
+      setSubmitting(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send reset code.");
+      setSubmitting(false);
+    }
+  }
+
+  async function handleForgotReset(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    setSubmitting(true);
+    const form = event.currentTarget;
+    const email = String(new FormData(form).get("email") ?? "").trim();
+    const code = String(new FormData(form).get("code") ?? "").trim();
+    const password = String(new FormData(form).get("password") ?? "");
+    const confirmPassword = String(
+      new FormData(form).get("confirmPassword") ?? "",
+    );
+
+    if (!email || !code) {
+      setError("Enter your email and the reset code from your message.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (!password) {
+      setError("Enter a new password.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await confirmPasswordReset(email, code, password);
+      switchMode("signin", email);
+      setSuccessMessage(
+        "Password updated. Sign in with your new password.",
+      );
+      setSubmitting(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Password reset failed.");
+      setSubmitting(false);
+    }
+  }
+
+  async function handleResendResetCode(
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResending(true);
+    const form = event.currentTarget.form;
+    const email = form
+      ? String(new FormData(form).get("email") ?? "").trim()
+      : forgotEmail;
+
+    if (!email) {
+      setError("Enter your email to resend the reset code.");
+      setResending(false);
+      return;
+    }
+
+    try {
+      await requestPasswordReset(email);
+      setSuccessMessage("A new reset code has been sent to your email.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not resend code.");
+    } finally {
+      setResending(false);
+    }
+  }
+
   return (
     <div className="bp-grid flex min-h-screen flex-col bg-bp-vellum text-bp-ink">
       <header className="border-b border-bp-ink bg-bp-stock">
@@ -222,11 +362,11 @@ export default function SignIn() {
             </p>
           </div>
 
-          {mode === "verify" ? (
+          {mode === "verify" || mode === "forgot" ? (
             <div className="border-b border-bp-ink bg-bp-stock px-4 py-3">
               <button
                 type="button"
-                onClick={() => switchMode("signin")}
+                onClick={() => switchMode("signin", mode === "forgot" ? forgotEmail : undefined)}
                 className="bp-anno bp-focus text-[10px] text-bp-graphite hover:text-bp-ink"
               >
                 ← Back to sign in
@@ -272,7 +412,140 @@ export default function SignIn() {
           )}
 
           <div className="p-6 sm:p-8">
-            {mode === "verify" ? (
+            {mode === "forgot" ? (
+              forgotStep === "reset" ? (
+                <div id="forgot-reset-panel">
+                  <h1 className="bp-display m-0 text-3xl">Set new password</h1>
+                  <p className="bp-body m-0 mt-3 text-sm text-bp-graphite">
+                    Enter the reset code from your email and choose a new password.
+                  </p>
+
+                  {successMessage ? (
+                    <p
+                      className="bp-body m-0 mt-5 border border-bp-approve bg-bp-stock px-4 py-3 text-sm text-bp-approve"
+                      role="status"
+                    >
+                      {successMessage}
+                    </p>
+                  ) : null}
+
+                  {error ? (
+                    <div className="mt-5">
+                      <ErrorState title="Password reset failed" body={error} />
+                    </div>
+                  ) : null}
+
+                  <form
+                    className="mt-7 flex flex-col gap-5"
+                    onSubmit={handleForgotReset}
+                  >
+                    <TextField
+                      label="Work email"
+                      name="email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      defaultValue={forgotEmail}
+                      placeholder="you@company.com"
+                    />
+                    <TextField
+                      label="Reset code"
+                      name="code"
+                      required
+                      autoComplete="one-time-code"
+                      inputMode="numeric"
+                      placeholder="6-digit code"
+                      hint="Paste the code from your password reset email."
+                    />
+                    <PasswordField
+                      label="New password"
+                      name="password"
+                      required
+                      autoComplete="new-password"
+                      placeholder="Choose a new password"
+                      visible={passwordVisible}
+                      onVisibleChange={setPasswordVisible}
+                    />
+                    <PasswordField
+                      label="Confirm new password"
+                      name="confirmPassword"
+                      required
+                      autoComplete="new-password"
+                      placeholder="Re-enter your new password"
+                      visible={passwordVisible}
+                      onVisibleChange={setPasswordVisible}
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="lg"
+                      fullWidth
+                      disabled={submitting}
+                    >
+                      {submitting ? "Updating…" : "Update password"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="quiet"
+                      size="sm"
+                      disabled={resending}
+                      onClick={handleResendResetCode}
+                    >
+                      {resending ? "Sending…" : "Resend reset code"}
+                    </Button>
+                  </form>
+                </div>
+              ) : (
+                <div id="forgot-request-panel">
+                  <h1 className="bp-display m-0 text-3xl">Reset password</h1>
+                  <p className="bp-body m-0 mt-3 text-sm text-bp-graphite">
+                    Enter your work email and we will send a reset code.
+                    {useDevAuth
+                      ? " Password reset is not available in dev auth mode."
+                      : ""}
+                  </p>
+
+                  {successMessage ? (
+                    <p
+                      className="bp-body m-0 mt-5 border border-bp-approve bg-bp-stock px-4 py-3 text-sm text-bp-approve"
+                      role="status"
+                    >
+                      {successMessage}
+                    </p>
+                  ) : null}
+
+                  {error ? (
+                    <div className="mt-5">
+                      <ErrorState title="Could not send reset code" body={error} />
+                    </div>
+                  ) : null}
+
+                  <form
+                    className="mt-7 flex flex-col gap-5"
+                    onSubmit={handleForgotRequest}
+                  >
+                    <TextField
+                      label="Work email"
+                      name="email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      defaultValue={forgotEmail}
+                      placeholder="you@company.com"
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="lg"
+                      fullWidth
+                      disabled={submitting || useDevAuth}
+                    >
+                      {submitting ? "Sending…" : "Send reset code"}
+                    </Button>
+                  </form>
+                </div>
+              )
+            ) : mode === "verify" ? (
               <div id="verify-panel">
                 <h1 className="bp-display m-0 text-3xl">Verify email</h1>
                 <p className="bp-body m-0 mt-3 text-sm text-bp-graphite">
@@ -387,6 +660,17 @@ export default function SignIn() {
                     visible={passwordVisible}
                     onVisibleChange={setPasswordVisible}
                   />
+                  {!useDevAuth ? (
+                    <p className="bp-body m-0 -mt-2 text-right text-xs">
+                      <button
+                        type="button"
+                        onClick={() => switchMode("forgot", signInEmail)}
+                        className="bp-focus text-bp-line underline decoration-dotted underline-offset-4"
+                      >
+                        Forgot password?
+                      </button>
+                    </p>
+                  ) : null}
                   <Button
                     type="submit"
                     variant="primary"

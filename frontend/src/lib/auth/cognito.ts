@@ -67,6 +67,36 @@ function mapCognitoConfirmError(error: unknown): Error {
   return new Error("Verification failed. Please try again.");
 }
 
+function mapCognitoForgotPasswordError(error: unknown): Error {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = String((error as { code: string }).code);
+    switch (code) {
+      case "UserNotFoundException":
+        return new Error("No account found for that email.");
+      case "CodeMismatchException":
+        return new Error("That reset code is incorrect. Try again.");
+      case "ExpiredCodeException":
+        return new Error("That reset code expired. Request a new one.");
+      case "InvalidPasswordException":
+        return new Error(
+          "Password does not meet requirements. Use at least 8 characters with upper, lower, and a number.",
+        );
+      case "LimitExceededException":
+        return new Error("Too many attempts. Wait a moment and try again.");
+      case "InvalidParameterException":
+        return new Error("Enter a valid email, reset code, and new password.");
+      default:
+        break;
+    }
+  }
+
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error("Password reset failed. Please try again.");
+}
+
 function mapCognitoError(error: unknown): Error {
   if (error && typeof error === "object" && "code" in error) {
     const code = String((error as { code: string }).code);
@@ -179,6 +209,44 @@ export async function confirmSignUp(
         return;
       }
       resolve();
+    });
+  });
+}
+
+/** Request a password reset code emailed by Cognito. */
+export async function forgotPassword(email: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const pool = getUserPool();
+  const user = new CognitoUser({
+    Username: normalizedEmail,
+    Pool: pool,
+  });
+
+  return new Promise((resolve, reject) => {
+    user.forgotPassword({
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(mapCognitoForgotPasswordError(err)),
+    });
+  });
+}
+
+/** Submit reset code and new password to complete forgot password. */
+export async function confirmForgotPassword(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const pool = getUserPool();
+  const user = new CognitoUser({
+    Username: normalizedEmail,
+    Pool: pool,
+  });
+
+  return new Promise((resolve, reject) => {
+    user.confirmPassword(code.trim(), newPassword, {
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(mapCognitoForgotPasswordError(err)),
     });
   });
 }
