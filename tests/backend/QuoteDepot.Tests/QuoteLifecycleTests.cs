@@ -10,6 +10,7 @@ public class QuoteLifecycleTests
     [InlineData(QuoteStatus.Draft, QuoteStatus.Submitted)]
     [InlineData(QuoteStatus.Submitted, QuoteStatus.UnderReview)]
     [InlineData(QuoteStatus.Submitted, QuoteStatus.Rejected)]
+    [InlineData(QuoteStatus.UnderReview, QuoteStatus.Submitted)]
     [InlineData(QuoteStatus.UnderReview, QuoteStatus.Accepted)]
     [InlineData(QuoteStatus.UnderReview, QuoteStatus.Rejected)]
     public void Legal_transitions_are_allowed(QuoteStatus from, QuoteStatus to)

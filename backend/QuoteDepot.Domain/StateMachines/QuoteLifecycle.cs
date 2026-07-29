@@ -10,7 +10,7 @@ public static class QuoteLifecycle
         {
             [QuoteStatus.Draft] = [QuoteStatus.Submitted],
             [QuoteStatus.Submitted] = [QuoteStatus.UnderReview, QuoteStatus.Rejected],
-            [QuoteStatus.UnderReview] = [QuoteStatus.Accepted, QuoteStatus.Rejected],
+            [QuoteStatus.UnderReview] = [QuoteStatus.Submitted, QuoteStatus.Accepted, QuoteStatus.Rejected],
             [QuoteStatus.Accepted] = [],
             [QuoteStatus.Rejected] = [],
         };
