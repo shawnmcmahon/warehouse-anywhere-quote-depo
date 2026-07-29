@@ -9,7 +9,7 @@ Estimates for a single small production box in **us-east-1** (On-Demand Linux). 
 | Compute | EC2 `t4g.micro` (2 vCPU, 1 GiB, Graviton) | ~$6.13 |
 | Disk | 20 GB gp3 EBS | ~$1.60 |
 | Public IP | Elastic IP attached to running instance | $0 |
-| Auth | Cognito User Pool (email + Google) | $0 at MVP scale\* |
+| Auth | Cognito User Pool (email/password) | $0 at MVP scale\* |
 | Load balancer | **None** (Nginx on the instance) | $0 vs ~$16 ALB |
 | DNS / TLS | Route 53 optional; Let’s Encrypt or Cloudflare free | $0–$0.50 |
 

@@ -11,12 +11,8 @@ In the AWS Console (same region as the EC2):
 1. **Cognito → User pools → Create**
    - Sign-in: email
    - Required attributes: email (name optional)
-   - App client: public client (no secret) for the SPA later; note **Client ID**
-2. Optional: **Federated identity / Google**
-   - Add Google IdP with OAuth client ID/secret from Google Cloud Console
-   - Enable Google on the app client Hosted UI
-3. Note **Region**, **User Pool ID**, **App client ID**
-4. Hosted UI domain (needed when the frontend auth screens land): create a Cognito domain and set callback URLs to your site origin(s)
+   - App client: public client (no secret) for the SPA; note **Client ID**
+2. Note **Region**, **User Pool ID**, **App client ID**
 
 ### Email verification (sign-up)
 

@@ -10,7 +10,7 @@ Part of **Warehouse Anywhere** — a place for warehouse and logistics teams to 
 
 Quote Depot helps organizations run a simple request-for-quote (RFQ) process:
 
-1. **Sign in** with email/password or Google (via Amazon Cognito).
+1. **Sign in** with email/password (via Amazon Cognito).
 2. **Join or create an organization** on first login — create a new org, accept an invite, or request to join an existing one.
 3. **Publish requests** — org members open RFQs and share a public link with vendors.
 4. **Collect quotes** — guests or signed-in users submit bids at `/r/{slug}`.
@@ -34,7 +34,7 @@ Quote Depot helps organizations run a simple request-for-quote (RFQ) process:
 | **Frontend** | React 19, Vite, TypeScript, Tailwind CSS, React Router |
 | **Backend** | ASP.NET Core 8 Web API |
 | **Data** | Entity Framework Core + SQLite |
-| **Authentication** | Amazon Cognito (email/password + Google) |
+| **Authentication** | Amazon Cognito (email/password) |
 | **Hosting** | AWS EC2, Docker Compose, Nginx |
 | **Edge / TLS** | Cloudflare |
 | **Tests** | xUnit (backend), Playwright (E2E, planned) |
@@ -64,8 +64,7 @@ flowchart TB
             Uploads[("File storage<br/>org logos / uploads")]
         end
 
-        Cognito["Amazon Cognito<br/>User pool + Hosted UI"]
-        Google["Google OAuth<br/>(optional IdP)"]
+        Cognito["Amazon Cognito<br/>User pool"]
         EBS["EBS volume<br/>persistent /data"]
     end
 
@@ -79,7 +78,6 @@ flowchart TB
     SQLite --- EBS
     Uploads --- EBS
     Browser -->|"sign in / sign up"| Cognito
-    Cognito --> Google
     Browser -->|"Bearer JWT"| API
     API -->|"validate JWT"| Cognito
 ```
