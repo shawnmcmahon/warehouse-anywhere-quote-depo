@@ -502,7 +502,7 @@ export default function RequestDetail() {
                                     void transitionQuote(quote.id, "Submitted")
                                   }
                                 >
-                                  Return to submitted
+                                  Revert
                                 </DeepButton>
                               ) : null}
                               {QUOTE_TRANSITIONS[quote.status].includes(
