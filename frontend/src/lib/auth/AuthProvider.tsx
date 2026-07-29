@@ -12,7 +12,9 @@ import { endpoints } from "../api/endpoints";
 import { ApiError } from "../api/client";
 import { authConfig } from "./config";
 import {
+  confirmForgotPassword,
   confirmSignUp,
+  forgotPassword,
   resendConfirmationCode,
   signInWithPassword,
   signUpWithPassword,
@@ -36,6 +38,12 @@ type AuthContextValue = {
   ) => Promise<{ needsConfirmation: boolean }>;
   confirmSignUpWithEmail: (email: string, code: string) => Promise<void>;
   resendSignUpCode: (email: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  confirmPasswordReset: (
+    email: string,
+    code: string,
+    newPassword: string,
+  ) => Promise<void>;
   signOut: () => void;
   refreshBootstrap: () => Promise<void>;
   useDevAuth: boolean;
@@ -132,6 +140,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await resendConfirmationCode(email);
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    if (authConfig.useDevAuth) {
+      throw new Error("Password reset is not available in dev auth mode.");
+    }
+
+    await forgotPassword(email);
+  }, []);
+
+  const confirmPasswordReset = useCallback(
+    async (email: string, code: string, newPassword: string) => {
+      if (authConfig.useDevAuth) {
+        throw new Error("Password reset is not available in dev auth mode.");
+      }
+
+      await confirmForgotPassword(email, code, newPassword);
+    },
+    [],
+  );
+
   const signOut = useCallback(() => {
     clearAccessToken();
     setBootstrap(null);
@@ -146,11 +173,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUpWithEmail,
       confirmSignUpWithEmail,
       resendSignUpCode,
+      requestPasswordReset,
+      confirmPasswordReset,
       signOut,
       refreshBootstrap,
       useDevAuth: authConfig.useDevAuth,
     }),
-    [status, bootstrap, signInWithEmail, signUpWithEmail, confirmSignUpWithEmail, resendSignUpCode, signOut, refreshBootstrap],
+    [
+      status,
+      bootstrap,
+      signInWithEmail,
+      signUpWithEmail,
+      confirmSignUpWithEmail,
+      resendSignUpCode,
+      requestPasswordReset,
+      confirmPasswordReset,
+      signOut,
+      refreshBootstrap,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
