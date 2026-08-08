@@ -1,6 +1,6 @@
 # Quote Depot
 
-**Live app:** [https://waquotedepot.com](https://waquotedepot.com)
+**Live app:** [https://waquotedepot.com](https://waquotedepot.com) *(Decommissioned as of 8/8/2026)*
 
 Part of **Warehouse Anywhere** — a place for warehouse and logistics teams to raise RFQs, collect vendor bids, and compare quotes in one workflow.
 
